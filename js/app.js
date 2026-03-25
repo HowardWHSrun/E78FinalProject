@@ -498,19 +498,7 @@
     el.fileInput.click();
   });
 
-  el.traceSelect.addEventListener("change", onTraceChange);
-  ["minHeight", "minProminence", "minDistance", "maxPeaks"].forEach((id) => {
-    const node = document.getElementById(id);
-    const onPeakParamInput = () => {
-      if (!lastSeries) return;
-      if (liveRunning) lastIdentifyAt = 0;
-      if (!liveRunning) runAnalysis({ animateChart: false });
-    };
-    node.addEventListener("change", onPeakParamInput);
-    node.addEventListener("input", onPeakParamInput);
-  });
-
-  el.exportBtn.addEventListener("click", () => {
+  function performExport() {
     if (!lastSeries || !lastMeta) return;
     const payload = {
       file: lastFileName,
@@ -534,33 +522,100 @@
     a.download = (lastFileName || "spectrum").replace(/[^\w.-]+/g, "_") + "_peaks.json";
     a.click();
     URL.revokeObjectURL(a.href);
-  });
+  }
 
-  el.modeFile.addEventListener("click", () => {
-    setModeFile();
-    syncModePills();
-  });
-  el.modeLive.addEventListener("click", () => {
-    mode = "live";
-    syncModePills();
-    if (!liveRunning) setStatus("Choose a preset and press Start live demo.");
-  });
-
-  el.btnLiveToggle.addEventListener("click", () => {
-    if (liveRunning) stopLive();
-    else startLive();
-  });
-
-  el.livePreset.addEventListener("change", () => {
+  function onLivePresetChange() {
     if (liveRunning) {
       lastIdentifyAt = 0;
       const preset = el.livePreset.value;
       lastMeta = getSyntheticMeta(preset);
       renderMeta({ meta: lastMeta, rows: [] }, "Live synthetic", [["Preset", getLivePresetLabel()]]);
     }
-  });
+  }
 
-  el.btnSample.addEventListener("click", loadSample);
+  function onPeakParamInput() {
+    if (!lastSeries) return;
+    if (liveRunning) lastIdentifyAt = 0;
+    if (!liveRunning) runAnalysis({ animateChart: false });
+  }
+
+  /**
+   * Material Web components use shadow DOM; clicks often target inner nodes so
+   * host-level listeners miss. Route by composedPath() in capture phase.
+   */
+  document.addEventListener(
+    "click",
+    (e) => {
+      for (const node of e.composedPath()) {
+        if (!node || node.nodeType !== Node.ELEMENT_NODE) continue;
+        const id = node.id;
+        if (!id) continue;
+        if (id === "btn-sample") {
+          e.preventDefault();
+          loadSample();
+          return;
+        }
+        if (id === "export-json") {
+          e.preventDefault();
+          performExport();
+          return;
+        }
+        if (id === "btn-live-toggle") {
+          e.preventDefault();
+          if (liveRunning) stopLive();
+          else startLive();
+          return;
+        }
+        if (id === "mode-file") {
+          e.preventDefault();
+          setModeFile();
+          syncModePills();
+          return;
+        }
+        if (id === "mode-live") {
+          e.preventDefault();
+          mode = "live";
+          syncModePills();
+          if (!liveRunning) setStatus("Choose a preset and press Start live demo.");
+          return;
+        }
+      }
+    },
+    true
+  );
+
+  document.addEventListener(
+    "change",
+    (e) => {
+      for (const node of e.composedPath()) {
+        if (!node || node.nodeType !== Node.ELEMENT_NODE) continue;
+        if (node.id === "trace-select") {
+          onTraceChange();
+          return;
+        }
+        if (node.id === "live-preset") {
+          onLivePresetChange();
+          return;
+        }
+      }
+    },
+    true
+  );
+
+  document.addEventListener(
+    "input",
+    (e) => {
+      for (const node of e.composedPath()) {
+        if (!node || node.nodeType !== Node.ELEMENT_NODE) continue;
+        const id = node.id;
+        if (id === "min-height" || id === "min-prominence" || id === "min-distance" || id === "max-peaks") {
+          onPeakParamInput();
+          return;
+        }
+      }
+    },
+    true
+  );
 
   el.traceSelect.replaceChildren();
   addMdSelectOption(el.traceSelect, "__", "Load CSV or sample…", true);

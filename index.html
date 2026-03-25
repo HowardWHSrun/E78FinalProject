@@ -36,8 +36,8 @@
             <span class="tag tag--accent">Bands B0–B7</span>
           </div>
           <div class="mode-switch" role="group" aria-label="Input mode">
-            <md-text-button id="mode-file" class="mode-m3 is-selected">File</md-text-button>
-            <md-text-button id="mode-live" class="mode-m3">Live demo</md-text-button>
+            <md-text-button id="mode-file" class="mode-m3 is-selected" type="button">File</md-text-button>
+            <md-text-button id="mode-live" class="mode-m3" type="button">Live demo</md-text-button>
           </div>
         </div>
         <h1 class="hero__title">EMC spectrum lab</h1>
@@ -53,7 +53,7 @@
           <h2 class="panel__label md-typescale-title-small">Data</h2>
 
           <div class="action-row">
-            <md-filled-button id="btn-sample" class="md-full-width">Load sample trace</md-filled-button>
+            <md-filled-button id="btn-sample" class="md-full-width" type="button">Load sample trace</md-filled-button>
           </div>
 
           <div id="dropzone" class="dropzone" role="button" tabindex="0">
@@ -75,7 +75,7 @@
                 <div slot="headline">2.4 GHz ISM slice</div>
               </md-select-option>
             </md-outlined-select>
-            <md-filled-button id="btn-live-toggle" class="md-full-width md-spacing-top">Start live demo</md-filled-button>
+            <md-filled-button id="btn-live-toggle" class="md-full-width md-spacing-top" type="button">Start live demo</md-filled-button>
             <p class="live-hint md-typescale-body-small">
               Stream runs in your browser — no hardware required. Peak ID refreshes ~4×/s.
             </p>
@@ -126,7 +126,7 @@
             ></md-outlined-text-field>
           </div>
 
-          <md-outlined-button id="export-json" class="md-full-width md-spacing-top-lg">Export peaks + IDs (JSON)</md-outlined-button>
+          <md-outlined-button id="export-json" class="md-full-width md-spacing-top-lg" type="button">Export peaks + IDs (JSON)</md-outlined-button>
         </aside>
 
         <div class="main-col">
