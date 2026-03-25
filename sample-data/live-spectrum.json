@@ -1,0 +1,13 @@
+{
+  "meta": {
+    "displayXUnit": "MHz",
+    "yUnit": "dBuV/m",
+    "startFreq": 87,
+    "stopFreq": 108,
+    "rbw": 200000,
+    "nPoints": 12,
+    "Swept SA": "Sample live JSON feed"
+  },
+  "frequencies": [87.0, 88.7, 90.1, 92.3, 94.5, 96.7, 98.1, 100.3, 102.5, 103.3, 105.7, 108.0],
+  "amplitudes": [61.2, 74.9, 64.5, 62.8, 63.2, 67.1, 81.4, 66.9, 65.7, 78.6, 63.8, 60.4]
+}
