@@ -8,10 +8,10 @@
     peakTable: document.getElementById("peak-table-body"),
     identifyTable: document.getElementById("identify-table-body"),
     exportBtn: document.getElementById("export-json"),
-    minHeight: document.getElementById("min-height"),
-    minProminence: document.getElementById("min-prominence"),
-    minDistance: document.getElementById("min-distance"),
-    maxPeaks: document.getElementById("max-peaks"),
+    minHeight: document.querySelector('[data-peak-param="minHeight"]'),
+    minProminence: document.querySelector('[data-peak-param="minProminence"]'),
+    minDistance: document.querySelector('[data-peak-param="minDistance"]'),
+    maxPeaks: document.querySelector('[data-peak-param="maxPeaks"]'),
     status: document.getElementById("status-line"),
     modeFile: document.getElementById("mode-file"),
     modeLive: document.getElementById("mode-live"),
@@ -36,7 +36,7 @@
   const LIVE_IDENTIFY_MS = 280;
 
   function setStatus(msg) {
-    el.status.textContent = msg;
+    if (el.status) el.status.textContent = msg;
   }
 
   function formatFreq(fHz, xUnit) {
@@ -105,8 +105,8 @@
   }
 
   function syncModePills() {
-    el.modeFile.classList.toggle("is-selected", mode === "file");
-    el.modeLive.classList.toggle("is-selected", mode === "live");
+    el.modeFile?.classList.toggle("is-selected", mode === "file");
+    el.modeLive?.classList.toggle("is-selected", mode === "live");
   }
 
   function getLivePresetLabel() {
@@ -237,15 +237,21 @@
   }
 
   function readPeakOptions() {
-    const h = parseFloat(el.minHeight.value);
-    const p = parseFloat(el.minProminence.value);
-    const d = parseInt(el.minDistance.value, 10);
-    const m = parseInt(el.maxPeaks.value, 10);
+    const gv = (node, fallback) => {
+      if (!node || node.value == null || node.value === "") return fallback;
+      const n = parseFloat(node.value);
+      return Number.isFinite(n) ? n : fallback;
+    };
+    const gi = (node, fallback) => {
+      if (!node || node.value == null || node.value === "") return fallback;
+      const n = parseInt(node.value, 10);
+      return Number.isFinite(n) ? n : fallback;
+    };
     return {
-      minHeight: Number.isFinite(h) ? h : -120,
-      minProminence: Number.isFinite(p) ? p : 3,
-      minDistance: Number.isFinite(d) ? d : 10,
-      maxPeaks: Number.isFinite(m) ? m : 50,
+      minHeight: gv(el.minHeight, -120),
+      minProminence: gv(el.minProminence, 3),
+      minDistance: gi(el.minDistance, 10),
+      maxPeaks: gi(el.maxPeaks, 50),
     };
   }
 
@@ -464,39 +470,43 @@
     }
   }
 
-  el.fileInput.addEventListener("change", (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (f) handleFile(f);
-  });
+  if (el.fileInput) {
+    el.fileInput.addEventListener("change", (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (f) handleFile(f);
+    });
+  }
 
-  ["dragenter", "dragover"].forEach((ev) => {
-    el.dropzone.addEventListener(ev, (e) => {
-      e.preventDefault();
-      if (mode === "live") return;
-      el.dropzone.classList.add("dropzone--active");
+  if (el.dropzone) {
+    ["dragenter", "dragover"].forEach((ev) => {
+      el.dropzone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        if (mode === "live") return;
+        el.dropzone.classList.add("dropzone--active");
+      });
     });
-  });
-  ["dragleave", "drop"].forEach((ev) => {
-    el.dropzone.addEventListener(ev, (e) => {
-      e.preventDefault();
-      el.dropzone.classList.remove("dropzone--active");
+    ["dragleave", "drop"].forEach((ev) => {
+      el.dropzone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        el.dropzone.classList.remove("dropzone--active");
+      });
     });
-  });
-  el.dropzone.addEventListener("drop", (e) => {
-    if (mode === "live") {
-      setStatus("Stop live demo first, or switch to File mode.");
-      return;
-    }
-    const f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f) handleFile(f);
-  });
-  el.dropzone.addEventListener("click", () => {
-    if (mode === "live") {
-      setStatus("Stop live demo to load a file, or click File mode.");
-      return;
-    }
-    el.fileInput.click();
-  });
+    el.dropzone.addEventListener("drop", (e) => {
+      if (mode === "live") {
+        setStatus("Stop live demo first, or switch to File mode.");
+        return;
+      }
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) handleFile(f);
+    });
+    el.dropzone.addEventListener("click", () => {
+      if (mode === "live") {
+        setStatus("Stop live demo to load a file, or click File mode.");
+        return;
+      }
+      el.fileInput?.click();
+    });
+  }
 
   function performExport() {
     if (!lastSeries || !lastMeta) return;
@@ -607,8 +617,7 @@
     (e) => {
       for (const node of e.composedPath()) {
         if (!node || node.nodeType !== Node.ELEMENT_NODE) continue;
-        const id = node.id;
-        if (id === "min-height" || id === "min-prominence" || id === "min-distance" || id === "max-peaks") {
+        if (node.getAttribute && node.getAttribute("data-peak-param")) {
           onPeakParamInput();
           return;
         }
@@ -617,9 +626,11 @@
     true
   );
 
-  el.traceSelect.replaceChildren();
-  addMdSelectOption(el.traceSelect, "__", "Load CSV or sample…", true);
-  el.traceSelect.disabled = true;
+  if (el.traceSelect) {
+    el.traceSelect.replaceChildren();
+    addMdSelectOption(el.traceSelect, "__", "Load CSV or sample…", true);
+    el.traceSelect.disabled = true;
+  }
   syncModePills();
 
   const stats = window.PEAK_SERVICE_DB_STATS;
