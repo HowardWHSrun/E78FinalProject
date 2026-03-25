@@ -11,14 +11,17 @@ python3 -m http.server 8080
 
 Open [http://127.0.0.1:8080/](http://127.0.0.1:8080/) (a local server is required for ES module / import maps).
 
-## GitHub Pages (deploy)
+## GitHub Pages
 
-This repo includes **GitHub Actions** (`.github/workflows/deploy-pages.yml`) to publish the static site on every push to `main`.
+The workflow [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) deploys the site on every push to `main`. You can also run it manually: **Actions → Deploy GitHub Pages → Run workflow**.
 
-1. On GitHub open **Settings → Pages**.
-2. Under **Build and deployment**, set **Source** to **GitHub Actions** (not “Deploy from a branch”).
-3. After the workflow finishes, the site is at:
+### One-time setup (if the site is not live yet)
 
-**https://howardwhsrun.github.io/E78FinalProject/**
+1. Open **[github.com/HowardWHSrun/E78FinalProject/settings/pages](https://github.com/HowardWHSrun/E78FinalProject/settings/pages)**.
+2. Under **Build and deployment**, set **Source** to **GitHub Actions**.
+3. Open **[Actions](https://github.com/HowardWHSrun/E78FinalProject/actions)** and confirm **Deploy GitHub Pages** completed (green). Re-run failed jobs if needed.
+4. The public URL is:
 
-(First run may take a minute; check the **Actions** tab for status.)
+### Live site
+
+**[https://howardwhsrun.github.io/E78FinalProject/](https://howardwhsrun.github.io/E78FinalProject/)**
