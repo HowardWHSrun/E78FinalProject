@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EMC Spectrum Lab · Radiated emission analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Material Design typography (Roboto) -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Syne:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script type="importmap">
+      {
+        "imports": {
+          "@material/web/": "https://esm.run/@material/web/"
+        }
+      }
+    </script>
+    <script type="module" src="js/material-init.js"></script>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="bg-glow bg-glow--a" aria-hidden="true"></div>
+    <div class="bg-glow bg-glow--b" aria-hidden="true"></div>
+    <div class="noise" aria-hidden="true"></div>
+
+    <div class="app md-body">
+      <header class="hero">
+        <div class="hero__row">
+          <div class="hero__badges">
+            <span id="live-badge" class="live-badge" title="Live demo status">LIVE</span>
+            <span class="tag tag--dim">Keysight CSV</span>
+            <span class="tag tag--accent">Bands B0–B7</span>
+          </div>
+          <div class="mode-switch" role="group" aria-label="Input mode">
+            <md-text-button id="mode-file" class="mode-m3 is-selected">File</md-text-button>
+            <md-text-button id="mode-live" class="mode-m3">Live demo</md-text-button>
+          </div>
+        </div>
+        <h1 class="hero__title">EMC spectrum lab</h1>
+        <p class="hero__sub md-typescale-body-medium">
+          Radiated emission sweeps, <strong>live synthetic</strong> spectrum, or a
+          <strong>one-click sample</strong>. Peaks use prominence detection; service labels come from a built-in
+          frequency allocation reference (EMC bands B0–B7).
+        </p>
+      </header>
+
+      <div class="layout">
+        <aside class="panel panel--sidebar">
+          <h2 class="panel__label md-typescale-title-small">Data</h2>
+
+          <div class="action-row">
+            <md-filled-button id="btn-sample" class="md-full-width">Load sample trace</md-filled-button>
+          </div>
+
+          <div id="dropzone" class="dropzone" role="button" tabindex="0">
+            <div class="dropzone__icon" aria-hidden="true"></div>
+            <strong>Drop Keysight CSV</strong>
+            <span>N9010B · AllTrace · <code>DATA</code> block</span>
+          </div>
+          <input id="file-input" class="sr-only" type="file" accept=".csv,text/csv" />
+
+          <div id="live-controls" class="live-controls">
+            <md-outlined-select id="live-preset" label="Live preset" class="md-full-width" clamp-menu-width>
+              <md-select-option value="b0" selected>
+                <div slot="headline">B0-style (10–160 kHz)</div>
+              </md-select-option>
+              <md-select-option value="fm">
+                <div slot="headline">FM window (87–108 MHz)</div>
+              </md-select-option>
+              <md-select-option value="wifi">
+                <div slot="headline">2.4 GHz ISM slice</div>
+              </md-select-option>
+            </md-outlined-select>
+            <md-filled-button id="btn-live-toggle" class="md-full-width md-spacing-top">Start live demo</md-filled-button>
+            <p class="live-hint md-typescale-body-small">
+              Stream runs in your browser — no hardware required. Peak ID refreshes ~4×/s.
+            </p>
+          </div>
+
+          <div id="file-name" class="file-name md-typescale-body-small"></div>
+          <div id="meta-panel" class="meta-panel md-typescale-body-small"></div>
+
+          <div class="controls">
+            <md-outlined-select id="trace-select" label="Active trace" class="md-full-width" clamp-menu-width></md-outlined-select>
+          </div>
+
+          <div class="peak-params">
+            <h3 class="peak-params__title md-typescale-title-small">Peak detection</h3>
+            <md-outlined-text-field
+              id="min-height"
+              class="md-full-width md-spacing-top"
+              label="Min height (dB)"
+              type="number"
+              value="-120"
+              step="1"
+            ></md-outlined-text-field>
+            <md-outlined-text-field
+              id="min-prominence"
+              class="md-full-width md-spacing-top"
+              label="Min prominence (dB)"
+              type="number"
+              value="3"
+              step="0.5"
+            ></md-outlined-text-field>
+            <md-outlined-text-field
+              id="min-distance"
+              class="md-full-width md-spacing-top"
+              label="Min index distance"
+              type="number"
+              value="10"
+              step="1"
+              min="1"
+            ></md-outlined-text-field>
+            <md-outlined-text-field
+              id="max-peaks"
+              class="md-full-width md-spacing-top"
+              label="Max peaks"
+              type="number"
+              value="50"
+              step="1"
+              min="1"
+            ></md-outlined-text-field>
+          </div>
+
+          <md-outlined-button id="export-json" class="md-full-width md-spacing-top-lg">Export peaks + IDs (JSON)</md-outlined-button>
+        </aside>
+
+        <div class="main-col">
+          <p id="status-line" class="status-line md-typescale-body-small"></p>
+          <section class="panel panel--chart">
+            <div class="panel__head">
+              <h2 class="panel__label panel__label--nomargin md-typescale-title-small">Spectrum</h2>
+              <span class="panel__hint md-typescale-body-small">Cyan trace · magenta markers</span>
+            </div>
+            <div id="chart-wrap" class="chart-wrap">
+              <canvas id="spectrum-chart" aria-label="Spectrum plot"></canvas>
+            </div>
+          </section>
+
+          <div class="tables">
+            <section class="panel">
+              <h2 class="panel__label md-typescale-title-small">Detected peaks</h2>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Frequency</th>
+                      <th>Level</th>
+                      <th>Prom.</th>
+                    </tr>
+                  </thead>
+                  <tbody id="peak-table-body"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="panel">
+              <h2 class="panel__label md-typescale-title-small">Detect / identify</h2>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Peak</th>
+                      <th>Primary service</th>
+                      <th>Description</th>
+                      <th>Band</th>
+                      <th>FCC / part</th>
+                      <th>Likelihood</th>
+                    </tr>
+                  </thead>
+                  <tbody id="identify-table-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script defer src="databases/peak-identification-database-band0.js"></script>
+    <script defer src="databases/peak-identification-database-band1.js"></script>
+    <script defer src="databases/peak-identification-database-band2.js"></script>
+    <script defer src="databases/peak-identification-database-band3.js"></script>
+    <script defer src="databases/peak-identification-database-band4.js"></script>
+    <script defer src="databases/peak-identification-database-band5.js"></script>
+    <script defer src="databases/peak-identification-database-band6.js"></script>
+    <script defer src="databases/peak-identification-database-band7.js"></script>
+    <script defer src="js/peak-database.js"></script>
+    <script defer src="js/parser.js"></script>
+    <script defer src="js/peaks.js"></script>
+    <script defer src="js/identify.js"></script>
+    <script defer src="js/live-synthetic.js"></script>
+    <script defer src="js/app.js"></script>
+  </body>
+</html>
