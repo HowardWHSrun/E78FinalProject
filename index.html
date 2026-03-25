@@ -31,19 +31,19 @@
       <header class="hero">
         <div class="hero__row">
           <div class="hero__badges">
-            <span id="live-badge" class="live-badge" title="Live demo status">LIVE</span>
+            <span id="live-badge" class="live-badge" title="Live data status">LIVE</span>
             <span class="tag tag--dim">Keysight CSV</span>
             <span class="tag tag--accent">Bands B0–B7</span>
           </div>
           <div class="mode-switch" role="group" aria-label="Input mode">
             <md-text-button id="mode-file" class="mode-m3 is-selected" type="button">File</md-text-button>
-            <md-text-button id="mode-live" class="mode-m3" type="button">Live demo</md-text-button>
+            <md-text-button id="mode-live" class="mode-m3" type="button">Live</md-text-button>
           </div>
         </div>
         <h1 class="hero__title">EMC spectrum lab</h1>
         <p class="hero__sub md-typescale-body-medium">
-          Radiated emission sweeps, <strong>live synthetic</strong> spectrum, or a
-          <strong>one-click sample</strong>. Peaks use prominence detection; service labels come from a built-in
+          Radiated emission sweeps, a <strong>polled live feed</strong> or synthetic demo, and
+          <strong>one-click sample analysis</strong>. Peaks use prominence detection; service labels come from a built-in
           frequency allocation reference (EMC bands B0–B7).
         </p>
       </header>
@@ -58,10 +58,10 @@
 
           <div id="dropzone" class="dropzone" role="button" tabindex="0">
             <div class="dropzone__icon" aria-hidden="true"></div>
-            <strong>Drop Keysight CSV</strong>
-            <span>N9010B · AllTrace · <code>DATA</code> block</span>
+            <strong>Drop spectrum file</strong>
+            <span>Keysight CSV, generic CSV, or JSON sweep data</span>
           </div>
-          <input id="file-input" class="sr-only" type="file" accept=".csv,text/csv" />
+          <input id="file-input" class="sr-only" type="file" accept=".csv,.json,.txt,text/csv,application/json,text/plain" />
 
           <div id="live-controls" class="live-controls">
             <md-outlined-select id="live-preset" label="Live preset" class="md-full-width" clamp-menu-width>
@@ -75,9 +75,26 @@
                 <div slot="headline">2.4 GHz ISM slice</div>
               </md-select-option>
             </md-outlined-select>
-            <md-filled-button id="btn-live-toggle" class="md-full-width md-spacing-top" type="button">Start live demo</md-filled-button>
+            <md-outlined-text-field
+              id="live-url"
+              class="md-full-width md-spacing-top"
+              label="Live data URL (optional)"
+              type="url"
+              placeholder="./sample-data/live-spectrum.json"
+            ></md-outlined-text-field>
+            <md-outlined-text-field
+              id="live-poll-ms"
+              class="md-full-width md-spacing-top"
+              label="Poll interval (ms)"
+              type="number"
+              value="1500"
+              step="100"
+              min="250"
+            ></md-outlined-text-field>
+            <md-filled-button id="btn-live-toggle" class="md-full-width md-spacing-top" type="button">Start live feed</md-filled-button>
             <p class="live-hint md-typescale-body-small">
-              Stream runs in your browser — no hardware required. Peak ID refreshes ~4×/s.
+              Leave URL empty to use the built-in synthetic stream. When a URL is provided, the app polls JSON or CSV
+              sweep data and runs the same peak + identification analysis on each refresh.
             </p>
           </div>
 
