@@ -17,10 +17,10 @@ The workflow [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pag
 
 ### One-time setup (if the site is not live yet)
 
-1. Open **[github.com/HowardWHSrun/E78FinalProject/settings/pages](https://github.com/HowardWHSrun/E78FinalProject/settings/pages)**.
-2. Under **Build and deployment**, set **Source** to **GitHub Actions**.
-3. Open **[Actions](https://github.com/HowardWHSrun/E78FinalProject/actions)** and confirm **Deploy GitHub Pages** completed (green). Re-run failed jobs if needed.
-4. The public URL is:
+1. Open **[Settings → Pages](https://github.com/HowardWHSrun/E78FinalProject/settings/pages)** and set **Source** to **GitHub Actions**.
+2. **If deployments fail:** open **[Settings → Actions → General](https://github.com/HowardWHSrun/E78FinalProject/settings/actions)** → **Workflow permissions** → select **Read and write permissions**, then **Save**. This allows `GITHUB_TOKEN` to publish Pages (required even though the workflow lists `pages: write`).
+3. If **Environments → github-pages** has **required reviewers**, approve the pending deployment or remove that rule.
+4. Open **[Actions](https://github.com/HowardWHSrun/E78FinalProject/actions)** and confirm **Deploy GitHub Pages** is green (re-run failed workflows after step 2).
 
 ### Live site
 
