@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+presentation.aux
+presentation.log
+presentation.nav
+presentation.out
+presentation.snm
+presentation.toc
+.DS_Store
