@@ -3,31 +3,57 @@
 \usetheme{Madrid}
 \usecolortheme{seahorse}
 
-% --- Dark theme ---
-\setbeamercolor{background canvas}{bg=black!90}
-\setbeamercolor{normal text}{fg=white}
-\setbeamercolor{frametitle}{fg=white, bg=black!70}
-\setbeamercolor{title}{fg=white}
-\setbeamercolor{subtitle}{fg=white!80}
-\setbeamercolor{author}{fg=white!80}
-\setbeamercolor{date}{fg=white!70}
-\setbeamercolor{institute}{fg=white!70}
-\setbeamercolor{item}{fg=cyan!70}
-\setbeamercolor{block title}{fg=white, bg=cyan!40!black}
-\setbeamercolor{block body}{bg=black!60}
-\setbeamercolor{structure}{fg=cyan!70}
-\setbeamercolor{alerted text}{fg=yellow!80}
-
 \usepackage{graphicx}
+\graphicspath{{../figures/}}
 \usepackage{amsmath}
 \usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage{xcolor}
 \usepackage{tikz}
 
+% --- Light, high-contrast theme ---
+\definecolor{SlideBg}{HTML}{F7FAFC}
+\definecolor{SlideText}{HTML}{18212F}
+\definecolor{SlideMuted}{HTML}{64748B}
+\definecolor{AccentBlue}{HTML}{1D4ED8}
+\definecolor{AccentPanel}{HTML}{DBEAFE}
+\definecolor{FrameBar}{HTML}{E2E8F0}
+\definecolor{BlockFill}{HTML}{EEF6FF}
+
+\setbeamercolor{background canvas}{bg=SlideBg}
+\setbeamercolor{normal text}{fg=SlideText}
+\setbeamercolor{frametitle}{fg=SlideText, bg=FrameBar}
+\setbeamercolor{title}{fg=SlideText, bg=AccentPanel}
+\setbeamercolor{subtitle}{fg=SlideMuted}
+\setbeamercolor{author}{fg=SlideText}
+\setbeamercolor{date}{fg=SlideMuted}
+\setbeamercolor{institute}{fg=SlideMuted}
+\setbeamercolor{item}{fg=AccentBlue}
+\setbeamercolor{block title}{fg=white, bg=AccentBlue}
+\setbeamercolor{block body}{fg=SlideText, bg=BlockFill}
+\setbeamercolor{structure}{fg=AccentBlue}
+\setbeamercolor{alerted text}{fg=AccentBlue}
+
+% Keep Beamer's default footer/navigation chrome from colliding with dense figures.
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=south east,text=SlideMuted,font=\scriptsize]
+      at ([xshift=-0.25cm,yshift=0.12cm]current page.south east)
+      {\insertframenumber/\inserttotalframenumber};
+  \end{tikzpicture}%
+}
+
 % highlight box
 \newcommand{\hlbox}[2]{%
-  \colorbox{#1}{\strut\color{white}\bfseries\,#2\,}%
+  \colorbox{#1}{\strut\color{SlideText}\bfseries\,#2\,}%
+}
+
+% Stable image placement helper for mixed text/image slides.
+\newcommand{\stableimage}[3]{%
+  \begin{center}
+  \includegraphics[width=#1\textwidth,height=#2\textheight,keepaspectratio]{#3}
+  \end{center}
 }
 
 \title{Real-Time Visualization of Digital Modulation\\and Channel Impairments Using a Single PlutoSDR}
@@ -41,7 +67,18 @@
 % SLIDE 1 -- Title
 % ==================================================================
 \begin{frame}[plain]
-\titlepage
+\vspace{0.95cm}
+\begin{center}
+\begin{beamercolorbox}[wd=0.88\textwidth,sep=0.38cm,center,rounded=true,shadow=false]{title}
+{\Large\bfseries Real-Time Visualization of Digital Modulation\\[0.15cm]
+and Channel Impairments Using a Single PlutoSDR}
+\end{beamercolorbox}
+\vspace{0.85cm}
+
+{\large Howard Wang}\\[0.35cm]
+{\normalsize ENGR 78 -- Final Project}\\[0.35cm]
+{\normalsize Spring 2026}
+\end{center}
 \end{frame}
 
 % ==================================================================
@@ -49,7 +86,7 @@
 % ==================================================================
 \begin{frame}{The Problem}
 \begin{center}
-\Large\color{yellow!80}
+\Large\color{AccentBlue}
 ``I can solve the BER equation, but I have no idea\\
 what a noisy constellation \emph{looks} like.''
 \end{center}
@@ -82,7 +119,7 @@ A \alert{real-time, interactive} digital-communications workbench:
 \end{enumerate}
 \end{column}
 \begin{column}{0.42\textwidth}
-\includegraphics[width=\textwidth]{figures/gui_live.png}
+\includegraphics[width=\textwidth,height=0.55\textheight,keepaspectratio]{gui_live.png}
 \end{column}
 \end{columns}
 \end{frame}
@@ -91,34 +128,43 @@ A \alert{real-time, interactive} digital-communications workbench:
 % SLIDE 4 -- System Architecture
 % ==================================================================
 \begin{frame}{System Architecture}
-\begin{center}
-\includegraphics[width=0.88\textwidth]{figures/block_diagram_v2.png}
-\end{center}
-\vspace{-0.1cm}
-\begin{columns}[T]
+\stableimage{0.98}{0.70}{block_diagram_v2.png}
+\end{frame}
+
+% ==================================================================
+% SLIDE 5 -- Architecture meaning
+% ==================================================================
+\begin{frame}{How to Read the Architecture}
+\footnotesize
+\begin{columns}[T,onlytextwidth]
 \begin{column}{0.48\textwidth}
-\begin{itemize}
-    \item \hlbox{red!60}{PlutoSDR} TX $\to$ 30\,dB attenuator $\to$ RX
-    \item Falls back to \hlbox{blue!50}{software loopback} if no hardware
+\textbf{\color{AccentBlue}Transmit Side}
+\begin{itemize}\setlength{\itemsep}{0.05cm}
+    \item \textbf{Payload bits}: random data to test the link.
+    \item \textbf{Symbol map + RRC}: turns bits into constellation points and limits bandwidth.
+    \item \textbf{Frame builder}: adds preamble and payload so RX can lock and compare bits.
 \end{itemize}
 \end{column}
 \begin{column}{0.48\textwidth}
-\begin{itemize}
-    \item Impairments injected \textbf{post-RX} -- no TX rebuild needed
-    \item GUI polls worker at 20 FPS -- DSP decoupled from rendering
+\textbf{\color{AccentBlue}Receive Side}
+\begin{itemize}\setlength{\itemsep}{0.05cm}
+    \item \textbf{Pluto loopback}: RF leaves TX, passes through attenuation, then re-enters RX.
+    \item \textbf{Software impairments}: adds noise, phase/frequency offset, fading, and multipath after RX.
+    \item \textbf{Sync + demod}: fixes timing/phase/frequency, recovers bits, and reports BER/EVM/SNR.
 \end{itemize}
 \end{column}
 \end{columns}
+\vspace{0.18cm}
+\begin{block}{Why the impairment block is after RX}
+Keeping impairments in software makes the sliders instant and lets hardware loopback and simulation use the same DSP + GUI path.
+\end{block}
 \end{frame}
 
 % ==================================================================
 % SLIDE 5 -- Modulation Schemes
 % ==================================================================
 \begin{frame}{Four Modulation Schemes}
-\begin{center}
-\includegraphics[width=0.92\textwidth]{figures/constellations.png}
-\end{center}
-\vspace{-0.1cm}
+\stableimage{0.92}{0.41}{constellations.png}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
 \begin{itemize}
@@ -139,12 +185,10 @@ A \alert{real-time, interactive} digital-communications workbench:
 % SLIDE 6 -- Channel Impairments (visual)
 % ==================================================================
 \begin{frame}{Channel Impairments -- See the Damage}
+\stableimage{0.92}{0.35}{impairment_effects.png}
 \begin{center}
-\includegraphics[width=0.92\textwidth]{figures/impairment_effects.png}
-\end{center}
-\vspace{-0.1cm}
-\begin{center}
-\small
+\scriptsize
+\renewcommand{\arraystretch}{0.92}
 \begin{tabular}{l l l}
 \toprule
 \textbf{Impairment} & \textbf{Model} & \textbf{Control Range} \\
@@ -163,10 +207,7 @@ Flat fading      & Rician envelope       & $K = -10$ to $40$\,dB \\
 % SLIDE 7 -- Receiver Sync
 % ==================================================================
 \begin{frame}{Receiver Synchronization}
-\begin{center}
-\includegraphics[width=0.85\textwidth]{figures/frame_structure.png}
-\end{center}
-\vspace{0.1cm}
+\stableimage{0.88}{0.34}{frame_structure.png}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
 \begin{enumerate}
@@ -187,10 +228,7 @@ Flat fading      & Rician envelope       & $K = -10$ to $40$\,dB \\
 % SLIDE 8 -- Eye Diagram Deep Dive
 % ==================================================================
 \begin{frame}{Eye Diagram -- Reading Signal Health}
-\begin{center}
-\includegraphics[width=0.88\textwidth]{figures/eye_diagrams.png}
-\end{center}
-\vspace{-0.1cm}
+\stableimage{0.90}{0.40}{eye_diagrams.png}
 \begin{itemize}
     \item 50 overlaid symbol-period traces of the matched-filtered I channel
     \item \textbf{Wide-open eye} $\Rightarrow$ clean decisions \hfill
@@ -203,26 +241,23 @@ Flat fading      & Rician envelope       & $K = -10$ to $40$\,dB \\
 % SLIDE 9 -- Live GUI Walkthrough
 % ==================================================================
 \begin{frame}{Live Mode -- GUI Walkthrough}
-\begin{center}
-\includegraphics[width=0.82\textwidth]{figures/gui_live.png}
-\end{center}
-\vspace{-0.2cm}
+\stableimage{0.82}{0.50}{gui_live.png}
 \begin{columns}[T]
 \begin{column}{0.24\textwidth}
-\centering\small\textbf{Spectrum}\\FFT of IQ\\spectral shape
+\centering\footnotesize\textbf{Spectrum}\\FFT of IQ\\spectral shape
 \end{column}
 \begin{column}{0.24\textwidth}
-\centering\small\textbf{Constellation}\\demod symbols\\ideal refs (yellow +)
+\centering\footnotesize\textbf{Constellation}\\demod symbols\\ideal refs
 \end{column}
 \begin{column}{0.24\textwidth}
-\centering\small\textbf{Eye Diagram}\\ISI indicator\\timing quality
+\centering\footnotesize\textbf{Eye Diagram}\\ISI indicator\\timing quality
 \end{column}
 \begin{column}{0.24\textwidth}
-\centering\small\textbf{Metrics}\\rolling BER,\\EVM, SNR
+\centering\footnotesize\textbf{Metrics}\\rolling BER,\\EVM, SNR
 \end{column}
 \end{columns}
-\vspace{0.15cm}
-\centering\small + \textbf{Throughput \& Cumulative Bits} panel across the bottom row
+\vspace{0.05cm}
+\centering\footnotesize + \textbf{Throughput \& Cumulative Bits} panel across the bottom row
 \end{frame}
 
 % ==================================================================
@@ -231,16 +266,21 @@ Flat fading      & Rician envelope       & $K = -10$ to $40$\,dB \\
 \begin{frame}{BER Sweep Mode -- Theory Meets Measurement}
 \begin{columns}[c]
 \begin{column}{0.55\textwidth}
-\includegraphics[width=\textwidth]{figures/ber_sweep.png}
+\includegraphics[width=\textwidth,height=0.56\textheight,keepaspectratio]{ber_sweep.png}
 \end{column}
 \begin{column}{0.42\textwidth}
+\small
 \begin{itemize}
     \item Automated: sweep SNR, measure BER for each scheme
     \item Circles = measured, dashed = theory:
-    \begin{align*}
-    \text{BPSK/QPSK:}\ & Q\!\bigl(\sqrt{2 E_b/N_0}\bigr) \\
-    \text{16-QAM:}\ & \tfrac{3}{8}\,\text{erfc}\!\bigl(\sqrt{0.4\, E_b/N_0}\bigr)
-    \end{align*}
+    {\scriptsize
+    \[
+    \begin{aligned}
+    \text{BPSK/QPSK: } & Q\!\left(\sqrt{2E_b/N_0}\right) \\
+    \text{16-QAM: } & \tfrac{3}{8}\operatorname{erfc}\!\left(\sqrt{0.4E_b/N_0}\right)
+    \end{aligned}
+    \]
+    }
     \item \alert{Validates} that our pipeline matches textbook curves
     \item Hardware loopback adds $\sim$0.5--1\,dB loss vs.\ simulation
 \end{itemize}
@@ -252,28 +292,24 @@ Flat fading      & Rician envelope       & $K = -10$ to $40$\,dB \\
 % SLIDE 11 -- Throughput & Cumulative Bits
 % ==================================================================
 \begin{frame}{Throughput \& Cumulative Bits}
-\begin{center}
-\includegraphics[width=0.88\textwidth]{figures/throughput_cumul.png}
-\end{center}
-\vspace{-0.2cm}
+\stableimage{0.90}{0.40}{throughput_cumul.png}
+\footnotesize
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
-\begin{block}{Instantaneous Throughput}
+\textbf{\color{AccentBlue}Instantaneous Throughput}
 \begin{itemize}
     \item QPSK at 20 FPS: $\sim$\alert{40 kbit/s} decoded payload
     \item 16-QAM doubles it: $\sim$80 kbit/s
     \item Varies with USB latency and sync lock
 \end{itemize}
-\end{block}
 \end{column}
 \begin{column}{0.48\textwidth}
-\begin{block}{Cumulative Bits}
+\textbf{\color{AccentBlue}Cumulative Bits}
 \begin{itemize}
     \item Tracks \textbf{every bit} decoded since ``Start''
     \item Linear ramp = steady link; plateau = sync loss
     \item $>$\,1\,Mbit within 30\,s of clean QPSK
 \end{itemize}
-\end{block}
 \end{column}
 \end{columns}
 \end{frame}
@@ -283,7 +319,8 @@ Flat fading      & Rician envelope       & $K = -10$ to $40$\,dB \\
 % ==================================================================
 \begin{frame}{Software Architecture}
 \begin{center}
-\small
+\scriptsize
+\renewcommand{\arraystretch}{0.94}
 \begin{tabular}{l l l}
 \toprule
 \textbf{Module} & \textbf{Role} & \textbf{Key Technique} \\
@@ -298,7 +335,8 @@ Flat fading      & Rician envelope       & $K = -10$ to $40$\,dB \\
 \bottomrule
 \end{tabular}
 \end{center}
-\vspace{0.4cm}
+\vspace{0.18cm}
+\small
 \begin{block}{Key Design Choice}
 DSP worker writes to shared memory $\to$ GUI timer reads at its own pace.\\
 Result: \textbf{no signal-queue backlog}, consistent frame rate regardless of DSP speed.
@@ -387,9 +425,9 @@ Result: \textbf{no signal-queue backlog}, consistent frame rate regardless of DS
 \begin{frame}{Conclusion}
 \begin{center}
 \begin{minipage}{0.85\textwidth}
-\large
+\normalsize
 Built a \alert{complete real-time digital communications visualizer} with:
-\vspace{0.3cm}
+\vspace{0.15cm}
 \begin{itemize}
     \item[\checkmark] 4 modulation schemes (BPSK, QPSK, 8-PSK, 16-QAM)
     \item[\checkmark] 6 controllable channel impairments with instant visual feedback
@@ -398,13 +436,13 @@ Built a \alert{complete real-time digital communications visualizer} with:
     \item[\checkmark] Two modes: interactive live exploration \& automated BER sweep
     \item[\checkmark] Hardware or simulation -- works everywhere
 \end{itemize}
-\vspace{0.5cm}
+\vspace{0.2cm}
 All open-source Python -- $\sim$1200 lines across 7 modules.
 \end{minipage}
 \end{center}
-\vfill
+\vspace{0.2cm}
 \begin{center}
-\Large\textbf{\color{yellow!80}Thank You -- Questions?}
+\large\textbf{\color{AccentBlue}Thank You -- Questions?}
 \end{center}
 \end{frame}
 

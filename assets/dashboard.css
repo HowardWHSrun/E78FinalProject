@@ -1,0 +1,50 @@
+.ctrl-btn {
+    border: 1px solid #374151;
+    border-radius: 8px;
+    color: #e5e7eb;
+    background: #1f2937;
+    font-weight: 600;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.ctrl-btn:hover {
+    background: #273449;
+}
+
+.btn-connect {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.btn-connect:hover {
+    background: #1e40af;
+}
+
+.btn-start {
+    background: #047857;
+    border-color: #047857;
+}
+
+.btn-start:hover {
+    background: #065f46;
+}
+
+.btn-stop {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+.btn-stop:hover {
+    background: #991b1b;
+}
+
+.section-title {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #93c5fd;
+    margin-bottom: 8px;
+    font-weight: 700;
+}

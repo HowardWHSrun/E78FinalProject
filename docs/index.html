@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>E78 Final Project</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b1220;
+      color: #e5e7eb;
+    }
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+    .card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    h1 { margin-top: 0; }
+    a {
+      color: #93c5fd;
+      text-decoration: none;
+    }
+    a:hover { text-decoration: underline; }
+    code {
+      background: #1f2937;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+    ul { line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Real-Time Digital Modulation Visualizer</h1>
+    <p>ENGR 78 Final Project (PlutoSDR + Python DSP + browser dashboard)</p>
+
+    <div class="card">
+      <h2>Project Links</h2>
+      <ul>
+        <li><a href="presentation.pdf">Presentation Slides (PDF)</a></li>
+        <li><a href="report.pdf">Technical Report (PDF)</a></li>
+        <li><a href="https://github.com/HowardWHSrun/E78FinalProject">Source Code on GitHub</a></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Run Locally</h2>
+      <p>From the repository root:</p>
+      <p><code>pip install -r requirements.txt</code></p>
+      <p><code>python web_app.py</code></p>
+      <p>Then open <code>http://127.0.0.1:8050</code>.</p>
+    </div>
+
+    <div class="card">
+      <h2>Hardware Setup</h2>
+      <ul>
+        <li>Connect PlutoSDR TX to RX with SMA cable.</li>
+        <li>Use a 30 dB attenuator before RX.</li>
+        <li>In the web dashboard, choose <strong>Hardware (PlutoSDR)</strong> and click <strong>Connect</strong>.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

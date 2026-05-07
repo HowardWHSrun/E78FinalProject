@@ -3,3 +3,5 @@ scipy>=1.11
 PyQt6>=6.5
 pyqtgraph>=0.13
 pyadi-iio>=0.0.16
+dash>=2.18
+plotly>=5.24
