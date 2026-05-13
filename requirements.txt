@@ -1,4 +1,4 @@
-numpy>=1.24
+numpy>=1.26
 scipy>=1.11
 dash>=2.18
 plotly>=5.24

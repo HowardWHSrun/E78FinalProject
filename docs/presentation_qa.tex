@@ -1,0 +1,141 @@
+% Anticipated Q&A for ENGR 78 final presentation (standalone PDF).
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{parskip}
+
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black}
+
+\title{Presentation Q\&A\\\large Communications Systems Visualizer (ENGR~78)}
+\author{Howard Wang \and Kaw Moo \and Charlie Schuetz}
+\date{Spring 2026}
+
+\newenvironment{qaitem}{%
+  \begin{enumerate}[label=\textbf{Q\arabic*.}, leftmargin=2.2em, itemsep=1.1em, listparindent=0pt]
+}{%
+  \end{enumerate}%
+}
+
+\newcommand{\Ans}{\par\noindent\textbf{Answer.}\quad}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Likely audience questions with short \textbf{model answers} aligned to this repository (\texttt{main.py}, \texttt{web\_app.py}, \texttt{pluto\_live\_app.py}, \texttt{src/}). Adjust wording for your demo path (hardware vs.\ simulation).
+\end{abstract}
+
+\section*{Goals and scope}
+
+\begin{qaitem}
+  \item Why a browser app instead of MATLAB, GNU Radio, or a Jupyter notebook?
+  \Ans A single \texttt{pip install -r requirements.txt} and \texttt{python main.py} gives a tabbed UI in Chrome or Safari with no license server, no cell re-run order, and no radio toolchain for the \emph{core} course path. Dash + Plotly match how we wanted linked sliders and multiple panes updated together for teaching.
+
+  \item What parts of ENGR~78 does the tool cover, and what did you deliberately leave out?
+  \Ans Covered: PCM-style sampling/quantization intuition, line codes + PSD, raised-cosine ISI and eye segments, $M$-ary PAM, passband ASK/BFSK/QPSK/16-QAM views, Shannon capacity vs.\ SNR, binary entropy / BSC rate, and a tiny repetition-code nearest-codeword toy. Left out: full FEC chains, OFDM, multipath channel models in the \emph{main} app, calibrated RF lab measurements, and production-grade receiver acquisition.
+
+  \item Who is the primary user, and how long does it take to get running?
+  \Ans Primary users are students and instructors doing quick explorations on a laptop. Install dependencies once, then start the server; the browser opens to \texttt{127.0.0.1:8050}. Optional Pluto live is a second command on port~8051.
+
+  \item How is this different from static plots in the lecture slides?
+  \Ans Sliders and bit strings recompute traces immediately, so users see how bandwidth, noise, roll-off, and modulation order trade off in \emph{linked} time, frequency, and state-space views instead of fixed figures.
+\end{qaitem}
+
+\section*{Architecture and implementation}
+
+\begin{qaitem}
+  \setcounter{enumi}{4}
+  \item Walk through the data flow: user moves a slider $\rightarrow$ what runs $\rightarrow$ what goes to Plotly?
+  \Ans Dash matches control \texttt{Input}s to an \texttt{@app.callback} in \texttt{web\_app.py}. That Python function builds NumPy arrays and returns Plotly \texttt{figure} objects (and small \texttt{html} stat blocks). Dash serializes the figure JSON to the browser; Plotly.js renders it.
+
+  \item Why Dash and Plotly instead of another web stack or a desktop GUI?
+  \Ans Dash gives declarative layouts and callbacks with minimal front-end code for a course-scale project. Plotly gives interactive zoom/pan and consistent styling across tabs. A desktop toolkit (Qt, etc.) would work but adds packaging friction for peers on different OSes.
+
+  \item Where does the heavy numerics live, and could that split be cleaner?
+  \Ans Almost all signal generation for the main dashboard lives in \texttt{web\_app.py} (helper functions + callbacks). A cleaner split would move pure DSP into \texttt{src/} modules and keep callbacks thin; we prioritized one place to read for the class demo.
+
+  \item How do you keep the UI responsive when FFTs or waveforms are expensive?
+  \Ans We keep vector lengths modest (fixed oversampling, bounded bit strings, limited eye traces). Callbacks return only the traces needed for the active tab. For Pluto live, a background thread does DSP and the UI polls at an interval so the browser thread is not buried in FFTs.
+
+  \item How would you add unit tests for the signal math?
+  \Ans Extract functions like \texttt{line\_code}, \texttt{raised\_cosine}, \texttt{carrier\_waveform}, and \texttt{spectrum\_db} into importable modules, then assert known outputs on golden inputs (e.g., all-ones NRZ spectrum shape, energy in main lobe). For Pluto sync, regression-test \texttt{synchronize} on synthetic IQ with noise.
+\end{qaitem}
+
+\section*{Main dashboard (PCM, line coding, ISI, carrier, capacity)}
+
+\begin{qaitem}
+  \setcounter{enumi}{9}
+  \item For PCM, what exactly is being plotted versus true Nyquist sampling of a bandlimited message?
+  \Ans The message is a \emph{synthetic} two-tone sinusoid whose highest frequency is tied to the message bandwidth slider $B_m$. Samples use $f_s = (\text{multiplier})\times B_m$; we plot message, samples, and uniform quantizer output and report $R_b = n f_s$. It illustrates sampling + quantization + bit rate, not a rigorous sampling theorem proof with an arbitrary bandlimited waveform.
+
+  \item How do you compute PSD for line codes?
+  \Ans For the line-code waveform, we remove the mean, apply a Hann window, zero-pad to $n_{\mathrm{fft}} = 2^{\lceil\log_2\max(512,\,4N)\rceil}$ (code: \texttt{spectrum\_db}), take one-sided \texttt{rfft}, square magnitude, normalize to peak~0~dB, then plot $10\log_{10}(\cdot)$ vs.\ frequency in cycles per bit time.
+
+  \item In the ISI/eye tab, what pulse and receiver assumptions are you using?
+  \Ans Symbols are random $M$-ary PAM on a raised-cosine pulse (\texttt{raised\_cosine} with roll-off $\beta$). Optional \texttt{add\_controlled\_isi} mixes scaled early/late copies to mimic ISI. AWGN is added to the convolved waveform. Eye segments overlay two symbol periods of the \emph{same} noisy waveform; the matched filter at the receiver is not a separate second filter in code---the visualization is diagnostic.
+
+  \item For QPSK or 16-QAM, is the spectrum analytic or real passband?
+  \Ans The stored carrier waveform \texttt{y} is \textbf{real} passband: I/Q symbols modulate $\cos$ and $\sin$ at a fixed integer cycles-per-symbol rate inside \texttt{carrier\_waveform}. The spectrum plot is an FFT magnitude of that real signal (scaled), so you see symmetric sidebands about the effective carrier, not a one-sided complex baseband spectrum.
+
+  \item How is ``throughput'' defined in the carrier tab?
+  \Ans It is a \textbf{nominal information rate} from the controls: $\text{throughput} = R_s \times (\text{bits per carrier symbol})$, with a second flat line for the $M$-ary PAM bit rate $R_s \log_2 M$. Cumulative bits on the secondary axis is $\text{carrier\_rate}\times t$. It is \emph{not} a measured decoder output on the main dashboard.
+
+  \item How does the Shannon capacity curve relate to the SNR sliders elsewhere?
+  \Ans The capacity tab has its \textbf{own} bandwidth and SNR sliders for $C=B\log_2(1+\mathrm{SNR})$. They are didactic: moving carrier or ISI noise does not automatically move that operating point. You can verbally tie them: ``same Shannon limit idea, separate controls for clarity.''
+
+  \item What simplifying assumptions does the repetition-code demo make?
+  \Ans Hard bit errors on a 3-bit word with a simple UI; decoding picks codeword \texttt{000} or \texttt{111} by \textbf{minimum Hamming distance}. No soft LLRs, no interleaving, no realistic channel model---just a visualization of redundancy and majority-like intuition.
+\end{qaitem}
+
+\section*{Optional Pluto live path}
+
+\begin{qaitem}
+  \setcounter{enumi}{16}
+  \item Why a second process on port~8051?
+  \Ans Two Dash apps each call \texttt{app.run} with one port. Running both in one process would require mounting sub-apps or dispatching routes; separate files keep the default class visualizer (\texttt{main.py}, 8050) independent from the optional radio demo (8051).
+
+  \item What does ``Simulation (no radio)'' do?
+  \Ans \texttt{PlutoInterface} returns tiled transmit IQ plus small complex AWGN instead of calling \texttt{sdr.rx()}. The same \texttt{RealtimeEngine} DSP chain runs so the UI matches hardware mode without libiio hardware.
+
+  \item What are the default RF settings for real Pluto, and who chose them?
+  \Ans In \texttt{pluto\_interface.py}: LO $=\!915$~MHz, sample rate and RF BW $=\!1$~MHz, TX gain $-30$~dB, RX AGC \texttt{slow\_attack}, RX buffer $2^{14}$ samples, cyclic TX buffer. These are safe classroom defaults for loopback/cable demos, not a regulatory approval.
+
+  \item How does frame synchronization work, and if sync fails?
+  \Ans \texttt{synchronization.py}: Barker preamble in the frame, cross-correlation for start, coarse frequency from repeated preamble, Gardner timing (with a fallback path without Gardner), then phase on the preamble. If no usable payload symbols are produced, the engine skips updating the latest result and the dashboard stays on placeholders until a good buffer arrives.
+
+  \item Does the dashboard show every RX sample?
+  \Ans No. The engine keeps only the \textbf{latest} buffer for the UI; the spectrum trace is decimated for plotting. Many DSP buffers between browser ticks are dropped from view.
+
+  \item Is any IQ sent to the cloud?
+  \Ans No. Everything stays in-process; the browser receives figure JSON from your local Dash server, not raw IQ uploads.
+
+  \item What would you change for a real over-the-air demo?
+  \Ans Pick an authorized ISM band and antenna, set legal ERP with attenuation and duty cycle, verify image rejection and LO leakage, use proper filtering and maybe lower symbol rate, and document cable vs.\ antenna loopback so grading expectations stay clear.
+\end{qaitem}
+
+\section*{Limitations, honesty, and extensions}
+
+\begin{qaitem}
+  \setcounter{enumi}{23}
+  \item What are the biggest modeling limitations?
+  \Ans Main app: idealized waveforms, AWGN only where noise appears, no multipath in the primary tabs, repetition toy instead of real FEC. Pluto path: single-buffer diagnostics, default RF not tuned per venue, BER/EVM are simulation-level unless you calibrate against a reference.
+
+  \item If you had two more weeks, what would you ship first?
+  \Ans Reasonable picks: (1) export traces to CSV for lab reports; (2) split \texttt{web\_app.py} DSP into tested modules; (3) Pluto UI knobs for LO/rate/gain; or (4) saved ``lecture presets'' that restore a full tab state.
+
+  \item How would you validate Pluto EVM/BER?
+  \Ans Cable loopback at low power, known fixed payload bits, compare demodulated bits to TX reference in simulation first; on hardware, step SNR and compare to analytic Q-function curve for QPSK in AWGN for order-of-magnitude agreement.
+
+  \item Could another course reuse this repo?
+  \Ans Yes, with a short ``instructor README'': Python version, \texttt{requirements.txt}, ports 8050/8051, optional libiio/Pluto install, which tabs map to which lecture week, and a disclaimer that RF defaults are for education not deployment.
+\end{qaitem}
+
+\vfill
+{\small\textcolor{gray}{Build: \texttt{make -C docs presentation\_qa.pdf} or \texttt{make -C docs qa}.}}
+
+\end{document}
