@@ -2,7 +2,6 @@
 
 \usepackage[margin=1in]{geometry}
 \usepackage{graphicx}
-\graphicspath{{../figures/}}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
 \usepackage{hyperref}
@@ -10,116 +9,140 @@
 \usepackage{caption}
 \usepackage{tabularx}
 
+\graphicspath{{plot_guide_screenshots/}}
+
 \hypersetup{
     colorlinks=true,
-    linkcolor=blue!60!black,
-    urlcolor=blue!60!black,
-    citecolor=blue!60!black,
-    pdftitle={ENGR 78 Final Project Report: PlutoSDR Modulation Visualizer},
-    pdfauthor={Howard Wang, Kaw Moo, Charlie Schuzte},
-    pdfsubject={Final Project Report}
+    linkcolor=blue!55!black,
+    urlcolor=blue!55!black,
+    pdftitle={ENGR 78 Final Project Report: Communications Visualizer},
+    pdfauthor={Howard Wang, Kaw Moo, Charlie Schuetz},
 }
 
-\title{\textbf{Real-Time Digital Modulation and Channel Impairments\\with a Single ADALM-PLUTO SDR}\\[0.4em]
+\title{\textbf{Communications Systems Visualizer}\\[0.3em]
 \large ENGR 78 --- Final Project Report}
-\author{Howard Wang \and Kaw Moo \and Charlie Schuzte}
+\author{Howard Wang \and Kaw Moo \and Charlie Schuetz}
 \date{Spring 2026}
 
 \begin{document}
 \maketitle
 
-\begin{abstract}
-\noindent
-We built a Python app that sends and receives a modulated signal on one ADALM-PLUTO in loopback, adds software channel impairments, and shows spectrum, constellation, eye diagram, BER/EVM/SNR, and throughput in real time. The receiver uses a Barker preamble, frequency/phase estimation, and Gardner timing recovery. A second mode sweeps SNR and plots BER against theory for BPSK, QPSK, 8-PSK, and 16-QAM. Code and this report are on GitHub (link below).
-\end{abstract}
+\section{Introduction}
 
-\section{What we built}
-The goal was a hands-on way to see how noise, phase/frequency offset, multipath, and fading affect a link---without needing two radios. One PlutoSDR in TX--RX loopback plus software impairments does the job.
+\subsection{Motivation}
+Undergraduate communications courses introduce a wide span of material---from sampling and quantization to line codes, pulse shaping, passband modulation, and information limits---often in separate homework sets or static figures. It is easy to memorize definitions without building intuition for how parameters (bandwidth, roll-off, noise, symbol rate) change time-domain waveforms, spectra, and eye openings in tandem. This project addresses that gap with a \textbf{single, locally hosted web application} that lets an instructor or student adjust controls and see linked plots update immediately.
 
-\noindent\textbf{Features:} Gray-coded BPSK/QPSK/8-PSK/16-QAM with RRC pulse shaping ($\alpha=0.35$, 8 sps); Pluto or software loopback; sliders for AWGN, phase, frequency offset, multipath, and Rician fading; live plots + BER sweep with theory curves.
+\subsection{Objectives}
+The team implemented a \textbf{Dash} application (Plotly front end, NumPy/SciPy back end) that:
+\begin{itemize}
+    \item consolidates ENGR~78 topics into five topical tabs (PCM; line coding; ISI and eye diagrams; $M$-ary PAM and carrier modulation; capacity and simple coding);
+    \item runs without specialized hardware in the default configuration;
+    \item remains extensible via a clear module layout and an optional ADALM-PLUTO live path for demonstrations.
+\end{itemize}
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.95\textwidth]{block_diagram_v2.png}
-    \caption{Signal flow: TX, RF loopback, impairments after RX, sync and demod, GUI.}
-    \label{fig:block}
-\end{figure}
+\subsection{Scope and usage}
+From the repository root, install dependencies with \texttt{pip install -r requirements.txt}, then run \texttt{python main.py}. Open the URL shown in the terminal in a modern browser; the default address is \path{http://127.0.0.1:8050/}.
 
-\noindent\textbf{Hardware:} TX to RX with SMA cable, \textbf{30~dB attenuator} before RX, USB to PC. No Pluto? Use simulation mode---same DSP and GUI.
+The UI uses \texttt{dcc.Tabs}. Each tab exposes sliders, dropdowns, or text inputs that drive \texttt{@app.callback} handlers in \texttt{web\_app.py}. Plots are regenerated server-side and returned as Plotly figure objects.
 
-\section{Background (short)}
-Symbols are pulse-shaped and demodulated with a matched filter and hard decisions. Impairments are applied in fixed order: multipath $\rightarrow$ fading $\rightarrow$ frequency offset $\rightarrow$ phase offset $\rightarrow$ AWGN (see Figure~\ref{fig:chain}). The receiver finds the frame via preamble correlation, estimates CFO and phase, and tracks timing with a Gardner loop.
+For optional over-the-air or loopback experiments, run \texttt{python pluto\_live\_app.py} and open \path{http://127.0.0.1:8051/} (separate port from the class visualizer). Use \textbf{Simulation (no radio)} in that UI if hardware is unavailable, then \textbf{Start}. The second Dash application uses modules under \texttt{src/}, including \texttt{realtime\_engine.py}, \texttt{modulation.py}, and \texttt{pluto\_interface.py}. It is \emph{not} required to use or grade the primary course visualizer.
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{impairment_chain.png}
-    \caption{Impairment order in software (matches \texttt{apply\_impairments}).}
-    \label{fig:chain}
-\end{figure}
+Figures in Section~\ref{sec:results} were exported to \texttt{docs/plot\_guide\_screenshots/} from the running application while preparing documentation; they are representative of the current UI theme and layout.
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.9\textwidth]{constellations.png}
-    \caption{The four constellations used in the demo.}
-    \label{fig:const}
-\end{figure}
+\section{System description}
 
-\section{Code and GitHub}
-\label{sec:availability}
-Everything is here:
+\subsection{Software stack}
+\begin{itemize}
+    \item \textbf{Dash} and \textbf{Plotly} provide layout, routing between tabs, and interactive graphics (pan, zoom, hover) without a separate desktop GUI framework for the main deliverable.
+    \item \textbf{NumPy} implements discrete-time signals, FFT-based spectra, convolution for pulse shaping, and Monte Carlo draws for noise and random symbols in the eye-diagram tab.
+    \item \textbf{SciPy} supports utilities such as windowed spectral estimates where applicable.
+\end{itemize}
 
-\begin{center}
-\url{https://github.com/HowardWHSrun/E78FinalProject}
-\end{center}
-
-\noindent
-Clone it, then use \texttt{README.md}. Layout: \texttt{main.py} at the root, code in \texttt{src/}, pictures in \texttt{figures/}, this PDF's \texttt{.tex} in \texttt{docs/}.
-
-\section{How to run}
-\texttt{pip install -r requirements.txt} from the repo root, then \texttt{python main.py}. Use \textbf{Connect Hardware} for the Pluto or \textbf{Simulation Mode} otherwise; press \textbf{Start}. Sliders change impairments; the \textbf{?} buttons explain each plot. \textbf{BER Sweep} runs automated SNR steps and overlays theory.
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.85\textwidth]{gui_live.png}
-    \caption{Live mode (example screenshot).}
-    \label{fig:gui}
-\end{figure}
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.85\textwidth]{ber_sweep.png}
-    \caption{BER vs.\ $E_b/N_0$: measured points vs.\ theory.}
-    \label{fig:ber}
-\end{figure}
-
-\section{Software (one table)}
-The DSP runs in a background thread; the GUI reads shared results on a timer ($\sim$20~Hz) so the window stays responsive.
+\subsection{Repository layout}
+Table~\ref{tab:files} summarizes the main entry points and supporting code. Legacy SDR-oriented modules remain under \texttt{src/} for the Pluto dashboard and for reference.
 
 \begin{table}[htbp]
     \centering
     \small
     \begin{tabularx}{\linewidth}{@{}lX@{}}
         \toprule
-        \textbf{File} & \textbf{What it does} \\
+        \textbf{Path} & \textbf{Role} \\
         \midrule
-        \texttt{main.py} & Starts the app; adds \texttt{src/} to the path \\
-        \texttt{src/gui.py} & PyQt6 UI, plots, BER sweep \\
-        \texttt{src/dsp\_worker.py} & RX $\rightarrow$ impair $\rightarrow$ sync $\rightarrow$ demod \\
-        \texttt{src/pluto\_interface.py} & Pluto or simulation \\
-        \texttt{src/modulation.py}, \texttt{impairments.py}, \texttt{synchronization.py}, \texttt{ber\_sweep.py} & Modulation, channel, sync, sweep \\
+        \texttt{main.py} & Launches the Dash development server (localhost; default port~8050). \\
+        \texttt{web\_app.py} & Application layout, tab definitions, callbacks, and in-browser signal generation. \\
+        \texttt{pluto\_live\_app.py} & Optional live dashboard for ADALM-PLUTO streaming. \\
+        \texttt{src/realtime\_engine.py} & Engine for streaming RX samples and metrics in Pluto mode. \\
+        \texttt{src/modulation.py}, \texttt{pluto\_interface.py}, \ldots & Modulation definitions and hardware/simulation bridge. \\
+        \texttt{requirements.txt} & Declares NumPy, SciPy, Dash, Plotly, and pyadi-iio. \\
         \bottomrule
     \end{tabularx}
+    \caption{Primary modules for the communications visualizer.}
+    \label{tab:files}
 \end{table}
 
-\section{Results (brief)}
-Measured BER vs.\ SNR tracks theory within about 1~dB under AWGN. Real hardware adds roughly 0.5--1~dB vs.\ simulation. Putting DSP in a worker thread and polling the GUI fixed lag we had when sending every buffer over Qt signals.
+\subsection{Functional summary by tab}
+\paragraph{PCM.} Users set message bandwidth, oversampling relative to Nyquist, and bits per sample; the interface reports implied sampling rate, quantization levels, and PCM bit rate alongside a conceptual waveform.
 
-\section{Conclusion}
-This project is a single-radio demo of modulation, impairments, and synchronization with live plots and a BER sweep. Extend it by adding schemes or impairment models in Python. See the GitHub link in Section~\ref{sec:availability}.
+\paragraph{Line coding.} A debounced binary string drives six line-code families (on-off and polar NRZ/RZ, AMI, Manchester). The tab shows the voltage waveform and a normalized PSD estimate from a windowed FFT.
+
+\paragraph{ISI and eye.} Raised-cosine roll-off $\beta$, optional neighbor-symbol coupling, additive noise, and PAM order control a random data eye diagram built from overlaid symbol-period segments.
+
+\paragraph{$M$-ary and carrier.} Symbol rate and PAM order illustrate rate--bandwidth tradeoffs. A dropdown selects ASK/OOK, BPSK, BFSK, QPSK, or 16-QAM; the tab shows passband time series, spectrum, and constellation or amplitude views where applicable, plus instantaneous and cumulative throughput.
+
+\paragraph{Capacity and codes.} For a chosen AWGN bandwidth and SNR, the Shannon capacity $C=B\log_2(1+\mathrm{SNR})$ is plotted with the operating point marked. User-specified source probabilities yield entropy $H(X)$. A repetition-code panel illustrates Hamming distance to codewords for a toy three-bit received word.
+
+\section{Results}
+\label{sec:results}
+
+Figure~\ref{fig:dash} shows the main layout with the carrier tab set to QPSK: the tab strip at the top, a row of summary statistics, and a grid of dark-theme Plotly panels. This layout is consistent across modulation choices; only the numerical readouts and traces change when the user switches schemes or moves sliders.
+
+Figure~\ref{fig:contact} aggregates several representative panels---constellation, spectrum, eye diagram, throughput---into a single composite image. Such exports are convenient for report appendices or slide decks when full-page browser captures are not needed.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{dashboard_visible_qpsk.png}
+    \caption{Dashboard with QPSK selected: tab navigation, statistics row, and Plotly panels.}
+    \label{fig:dash}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{plot_contact_sheet.png}
+    \caption{Composite export: constellation, spectrum, eye diagram, throughput, and related views.}
+    \label{fig:contact}
+\end{figure}
+
+Figures~\ref{fig:bpsk} and~\ref{fig:16qam} compare full-height captures for binary and 16-ary signaling on the same interface. BPSK yields a one-dimensional decision space in the constellation view and a relatively open eye under default noise. 16-QAM shows the expected $4\times 4$ grid in I/Q with proportionally higher bits per symbol; throughput readouts reflect the higher payload rate for the same symbol clock when the simulation is configured accordingly. Both figures illustrate that the tool scales visually from low-order to high-order constellations without changing the overall navigation model.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{bpsk_full.png}
+    \caption{BPSK configuration: full vertical extent of the dashboard layout.}
+    \label{fig:bpsk}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{16_qam_full.png}
+    \caption{16-QAM configuration: denser constellation and higher aggregate throughput.}
+    \label{fig:16qam}
+\end{figure}
+
+\noindent
+Individual high-resolution crops in \texttt{docs/plot\_guide\_screenshots/} (e.g.\ \texttt{qpsk\_constellation.png}, \texttt{qpsk\_eye.png}, \texttt{16\_qam\_spectrum.png}) support selective inclusion in presentations.
+
+\section{Discussion and conclusion}
+
+The browser-first design met the practical requirement that every student reproduce the environment on a laptop: installation reduces to a Python virtual environment and \texttt{pip install -r requirements.txt}. Plotly's native interaction (zoom regions of the spectrum, inspect constellation clusters) supports exploratory use during office hours or lab sections.
+
+Limitations are those of any server-side refresh model: many simultaneous callbacks and large FFTs can introduce latency on low-power machines; the Pluto path additionally depends on USB throughput and driver stability. Reasonable defaults in \texttt{web\_app.py} (initial bit patterns, slider ranges) are important so the first screen is pedagogically meaningful without tuning.
+
+Future work could include preset ``lecture modes,'' CSV export of plotted traces, additional modulation or line-code options, or deeper error-control labs---all within the same Dash structure.
 
 \begin{thebibliography}{9}
-\bibitem{pluto} Analog Devices, ADALM-PLUTO documentation.\\\url{https://wiki.analog.com/university/tools/pluto}
-\bibitem{proakis} J.\ G.\ Proakis and M.\ Salehi, \emph{Digital Communications}, McGraw-Hill.
+\bibitem{dash} Plotly Technologies Inc., \emph{Dash documentation}. \url{https://dash.plotly.com/}
+\bibitem{pluto} Analog Devices, \emph{ADALM-PLUTO user documentation}. \url{https://wiki.analog.com/university/tools/pluto}
+\bibitem{proakis} J.\ G.\ Proakis and M.\ Salehi, \emph{Digital Communications}, 5th ed., McGraw-Hill, 2008.
 \end{thebibliography}
 
 \end{document}

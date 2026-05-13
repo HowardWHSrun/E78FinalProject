@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 PlutoSDR hardware interface via pyadi-iio.
 
@@ -10,17 +12,31 @@ Two explicit modes:
 import numpy as np
 
 import os
+import time
+import ctypes
+import ctypes.util
 
-# Ensure libiio dylib is found on macOS (built from source to ~/.local)
-_local_lib = os.path.join(os.path.expanduser("~"), ".local", "lib")
-if os.path.isdir(_local_lib):
-    os.environ.setdefault("DYLD_LIBRARY_PATH", _local_lib)
-    # Also help ctypes find the library directly
-    import ctypes
+# Ensure libiio is found on macOS. The lab machines may have a local
+# framework build instead of a Homebrew install, and pylibiio asks
+# ctypes.util.find_library("iio") for the path.
+_LIBIIO_CANDIDATES = [
+    os.environ.get("LIBIIO_DYLIB"),
+    os.path.join(os.path.expanduser("~"), ".local", "lib", "libiio.dylib"),
+]
+_LIBIIO_PATH = next((p for p in _LIBIIO_CANDIDATES if p and os.path.exists(p)), None)
+if _LIBIIO_PATH:
     try:
-        ctypes.CDLL(os.path.join(_local_lib, "libiio.dylib"))
+        ctypes.CDLL(_LIBIIO_PATH, mode=ctypes.RTLD_GLOBAL)
     except OSError:
         pass
+    _orig_find_library = ctypes.util.find_library
+
+    def _find_library(name):
+        if name in {"iio", "libiio"}:
+            return _LIBIIO_PATH
+        return _orig_find_library(name)
+
+    ctypes.util.find_library = _find_library
 
 try:
     import adi
@@ -86,6 +102,16 @@ class PlutoInterface:
             return False
 
         try:
+            try:
+                self.sdr.rx_enabled_channels = [0]
+                self.sdr.tx_enabled_channels = [0]
+            except Exception:
+                pass
+            for ctx_attr in ("_ctx", "ctx"):
+                ctx = getattr(self.sdr, ctx_attr, None)
+                if ctx is not None and hasattr(ctx, "set_timeout"):
+                    ctx.set_timeout(10000)
+                    break
             self.sdr.rx_lo = lo
             self.sdr.tx_lo = lo
             self.sdr.sample_rate = fs
@@ -126,11 +152,12 @@ class PlutoInterface:
             pass
         return None
 
-    def connect_simulation(self):
+    def connect_simulation(self) -> bool:
         """Enter software-loopback mode (no hardware needed)."""
         self.disconnect()
         self.mode = self.MODE_SIMULATION
         print("[Pluto] Simulation mode enabled")
+        return True
 
     @property
     def is_hardware(self) -> bool:
@@ -190,10 +217,16 @@ class PlutoInterface:
         if self.is_hardware:
             if self.sdr is None:
                 raise HardwareError("SDR object is None")
-            try:
-                return np.array(self.sdr.rx(), dtype=complex)
-            except Exception as exc:
-                raise HardwareError(f"RX failed: {exc}") from exc
+            last_exc = None
+            for attempt in range(3):
+                try:
+                    return np.array(self.sdr.rx(), dtype=complex)
+                except Exception as exc:
+                    last_exc = exc
+                    if not self._is_timeout_error(exc) or attempt == 2:
+                        break
+                    time.sleep(0.05)
+            raise HardwareError(f"RX failed: {last_exc}") from last_exc
 
         if self.mode == self.MODE_SIMULATION:
             if self._tx_active and self._tx_samples is not None:
@@ -206,6 +239,10 @@ class PlutoInterface:
             return np.zeros(DEFAULT_BUFFER_SIZE, dtype=complex)
 
         raise HardwareError("Not connected")
+
+    @staticmethod
+    def _is_timeout_error(exc: Exception) -> bool:
+        return getattr(exc, "errno", None) == 110 or "[Errno 110]" in str(exc)
 
     # ------------------------------------------------------------------
     # Cleanup

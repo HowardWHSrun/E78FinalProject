@@ -1,30 +1,11 @@
 #!/usr/bin/env python3
-"""
-Real-Time Visualization of Digital Modulation and Channel Impairments
-Using a Single PlutoSDR
+"""Launch the ENGR 078 class-content dashboard."""
 
-ENGR 78 Final Project
-"""
-
-import sys
-from pathlib import Path
-
-_ROOT = Path(__file__).resolve().parent
-_SRC = _ROOT / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from PyQt6.QtWidgets import QApplication
-from gui import MainWindow
+from web_app import app
 
 
 def main():
-    app = QApplication(sys.argv)
-    app.setStyle("Fusion")
-
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec())
+    app.run(debug=False, host="127.0.0.1", port=8050)
 
 
 if __name__ == "__main__":

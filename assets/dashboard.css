@@ -48,3 +48,248 @@
     margin-bottom: 8px;
     font-weight: 700;
 }
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #0b1220;
+}
+
+.app-shell {
+    min-height: 100vh;
+    padding: 18px;
+    color: #e5e7eb;
+    background:
+        linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(11, 18, 32, 1) 42%),
+        #0b1220;
+    font-family: Inter, Arial, sans-serif;
+}
+
+.topbar {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 14px;
+}
+
+.topbar h1 {
+    margin: 0 0 5px;
+    font-size: 28px;
+    letter-spacing: 0;
+}
+
+.subtitle {
+    color: #aeb7c8;
+    max-width: 900px;
+    line-height: 1.45;
+}
+
+.scope-pills {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 280px;
+}
+
+.scope-pills span {
+    border: 1px solid #334155;
+    border-radius: 999px;
+    color: #d1d5db;
+    background: #111827;
+    padding: 7px 10px;
+    font-size: 12px;
+}
+
+.tabs {
+    border: 1px solid #243047;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #111827;
+}
+
+.tab {
+    color: #cbd5e1 !important;
+    background: #111827 !important;
+    border: 0 !important;
+    padding: 12px 14px !important;
+}
+
+.tab-active {
+    color: #ffffff !important;
+    background: #1f2937 !important;
+    border-top: 3px solid #34d399 !important;
+}
+
+.tab-content {
+    margin-top: 14px;
+}
+
+.tab-pane {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+}
+
+.controls,
+.panel {
+    background: #101827;
+    border: 1px solid #253147;
+    border-radius: 8px;
+}
+
+.controls {
+    padding: 14px;
+    position: sticky;
+    top: 14px;
+}
+
+.controls-title {
+    font-weight: 800;
+    color: #f8fafc;
+    margin-bottom: 12px;
+}
+
+.source-card {
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 12px;
+    background: #0b1220;
+}
+
+.source-value {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 15px;
+    font-weight: 900;
+    margin-top: 4px;
+}
+
+.source-detail {
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-top: 6px;
+}
+
+.source-note {
+    color: #fef3c7;
+}
+
+.quick-start {
+    border: 1px solid #263247;
+    border-radius: 8px;
+    padding: 10px 10px 8px;
+    margin-bottom: 12px;
+    background: #111827;
+}
+
+.quick-title {
+    color: #f8fafc;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.quick-start ol {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.quick-start li {
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.35;
+    margin: 0 0 5px;
+}
+
+.control-label {
+    display: block;
+    color: #cbd5e1;
+    font-size: 13px;
+    margin: 13px 0 6px;
+}
+
+.text-input {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 10px;
+    color: #111827;
+    border-radius: 6px;
+    border: 1px solid #475569;
+}
+
+.panel {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.plot-grid {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+}
+
+.plot-grid.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.plot-grid.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stats-grid {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.stat {
+    border: 1px solid #253147;
+    border-radius: 8px;
+    padding: 9px 10px;
+    background: #0f172a;
+}
+
+.stat-label {
+    color: #94a3b8;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.stat-value {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 15px;
+    font-weight: 800;
+    margin-top: 3px;
+}
+
+@media (max-width: 1120px) {
+    .topbar,
+    .tab-pane {
+        display: block;
+    }
+
+    .scope-pills {
+        justify-content: flex-start;
+        margin-top: 12px;
+    }
+
+    .controls {
+        position: static;
+        margin-bottom: 14px;
+    }
+
+    .plot-grid.two,
+    .plot-grid.three {
+        grid-template-columns: 1fr;
+    }
+}

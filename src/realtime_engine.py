@@ -5,6 +5,7 @@ Threaded DSP engine shared by non-Qt front ends (e.g. web dashboards).
 from __future__ import annotations
 
 import threading
+import time
 import traceback
 from dataclasses import dataclass
 from typing import Optional
@@ -32,6 +33,9 @@ NUM_TAPS = 101
 
 @dataclass
 class EngineResult:
+    scheme: str
+    sequence: int
+    produced_at: float
     raw_iq: np.ndarray
     impaired_iq: np.ndarray
     rx_symbols: np.ndarray
@@ -43,6 +47,7 @@ class EngineResult:
     freq_off: float
     phase_off: float
     bits_decoded: int
+    total_bits_decoded: int
 
 
 class RealtimeEngine:
@@ -57,6 +62,7 @@ class RealtimeEngine:
         self._scheme = "QPSK"
         self._tx_bits = None
         self._rrc_taps = None
+        self._tx_samples = None
 
         self.imp_snr_db = 30.0
         self.imp_phase_deg = 0.0
@@ -67,6 +73,8 @@ class RealtimeEngine:
 
         self._latest: Optional[EngineResult] = None
         self._has_new_data = False
+        self._sequence = 0
+        self._total_bits_decoded = 0
 
     @property
     def is_running(self) -> bool:
@@ -84,7 +92,7 @@ class RealtimeEngine:
 
     def connect_simulation(self) -> bool:
         self.stop()
-        ok = self.pluto.connect_simulation()
+        ok = bool(self.pluto.connect_simulation())
         self._status = "Connected (Simulation)" if ok else "Simulation unavailable"
         return ok
 
@@ -96,9 +104,21 @@ class RealtimeEngine:
     def set_scheme(self, scheme_name: str):
         if scheme_name not in SCHEMES:
             return
+        tx_samples = None
         with self._lock:
+            if self._scheme == scheme_name and self._tx_samples is not None:
+                return
             self._scheme = scheme_name
             self._rebuild_tx()
+            if self._running:
+                tx_samples = self._tx_samples.copy()
+                self._status = f"Streaming ({self._scheme})"
+        if tx_samples is not None:
+            try:
+                self.pluto.start_tx(tx_samples)
+            except HardwareError as exc:
+                self._status = f"Hardware error: {exc}"
+                self._running = False
 
     def set_impairments(
         self,
@@ -117,12 +137,27 @@ class RealtimeEngine:
         self.imp_fading_k = float(fading_k_db)
 
     def start(self):
-        if self._running or not self.pluto.is_connected:
+        if self._running:
+            return
+        if not self.pluto.is_connected:
+            self._status = "Not connected — choose Simulation or Connect Pluto, then Start"
             return
 
         with self._lock:
             self._rebuild_tx()
+            tx_samples = self._tx_samples.copy() if self._tx_samples is not None else None
 
+        if tx_samples is None:
+            self._status = "No waveform available"
+            return
+
+        try:
+            self.pluto.start_tx(tx_samples)
+        except HardwareError as exc:
+            self._status = f"Hardware error: {exc}"
+            return
+
+        self._reset_stream_counters()
         self._running = True
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
@@ -139,10 +174,15 @@ class RealtimeEngine:
 
     def read_latest(self) -> Optional[EngineResult]:
         with self._data_lock:
-            if not self._has_new_data:
-                return None
             self._has_new_data = False
             return self._latest
+
+    def _reset_stream_counters(self):
+        with self._data_lock:
+            self._latest = None
+            self._has_new_data = False
+            self._sequence = 0
+            self._total_bits_decoded = 0
 
     def _rebuild_tx(self):
         bps = SCHEMES[self._scheme]["bits_per_symbol"]
@@ -160,7 +200,7 @@ class RealtimeEngine:
         up[::SPS] = frame_symbols
         self._rrc_taps = rrc_filter(SPS, NUM_TAPS, ALPHA)
         tx_samples = fftconvolve(up, self._rrc_taps, mode="same")
-        self.pluto.start_tx(tx_samples)
+        self._tx_samples = tx_samples
 
     def _run_loop(self):
         while self._running:
@@ -173,6 +213,8 @@ class RealtimeEngine:
             except Exception as exc:
                 traceback.print_exc()
                 self._status = f"DSP error: {exc}"
+            # Brief yield so the Dash UI thread can run callbacks reliably.
+            time.sleep(0.002)
 
     def _process_one_buffer(self):
         raw_iq = self.pluto.receive()
@@ -198,14 +240,26 @@ class RealtimeEngine:
         if rrc is None or tx_bits is None:
             return
 
+        fs = self.pluto.sample_rate
         _, payload_syms, freq_off, phase_off = synchronize(
-            impaired, SPS, rrc, self.pluto.sample_rate, use_gardner=True
+            impaired, SPS, rrc, fs, use_gardner=True
         )
+        if len(payload_syms) == 0:
+            _, payload_syms, freq_off, phase_off = synchronize(
+                impaired, SPS, rrc, fs, use_gardner=False
+            )
+        if len(payload_syms) == 0:
+            return
+
+        bps = SCHEMES[scheme]["bits_per_symbol"]
+        expected_payload_syms = len(tx_bits) // bps
+        payload_syms = payload_syms[:expected_payload_syms]
         if len(payload_syms) == 0:
             return
 
         mf = fftconvolve(impaired, rrc, mode="same")
-        rx_bits = demodulate(payload_syms, scheme)
+        rx_bits = demodulate(payload_syms, scheme)[:len(tx_bits)]
+        bits_decoded = min(len(rx_bits), len(tx_bits))
         ber = compute_ber(tx_bits, rx_bits)
         ideal = ideal_symbols_for(payload_syms, scheme)
         evm = compute_evm(payload_syms, ideal)
@@ -219,7 +273,17 @@ class RealtimeEngine:
         if not np.isfinite(snr_est):
             snr_est = 50.0
 
+        produced_at = time.monotonic()
+        with self._data_lock:
+            self._sequence += 1
+            self._total_bits_decoded += bits_decoded
+            sequence = self._sequence
+            total_bits_decoded = self._total_bits_decoded
+
         result = EngineResult(
+            scheme=scheme,
+            sequence=sequence,
+            produced_at=produced_at,
             raw_iq=raw_iq,
             impaired_iq=impaired,
             rx_symbols=payload_syms,
@@ -230,7 +294,8 @@ class RealtimeEngine:
             snr=snr_est,
             freq_off=freq_off,
             phase_off=phase_off,
-            bits_decoded=len(rx_bits),
+            bits_decoded=bits_decoded,
+            total_bits_decoded=total_bits_decoded,
         )
 
         with self._data_lock:

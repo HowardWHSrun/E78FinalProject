@@ -1,7 +1,15 @@
+.codex-venv/
+.cursor/
+.venv-report/
+.vscode/
+
 __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+
+# Local Tectonic binary (optional; used if system pdflatex unavailable)
+docs/.tectonic/
 
 # LaTeX build artifacts (under docs/)
 docs/*.aux
@@ -11,3 +19,8 @@ docs/*.out
 docs/*.snm
 docs/*.toc
 docs/*.synctex.gz
+docs/plot_guide_pdf_quicklook/
+docs/plot_guide_pdf_render/
+docs/plot_guide_quicklook/
+docs/presentation_qa.pdf
+docs/presentation_qa.tex

@@ -4,12 +4,12 @@
 \usecolortheme{seahorse}
 
 \usepackage{graphicx}
-\graphicspath{{../figures/}}
-\usepackage{amsmath}
 \usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage{xcolor}
 \usepackage{tikz}
+
+\graphicspath{{plot_guide_screenshots/}}
 
 % --- Light, high-contrast theme ---
 \definecolor{SlideBg}{HTML}{F7FAFC}
@@ -34,7 +34,6 @@
 \setbeamercolor{structure}{fg=AccentBlue}
 \setbeamercolor{alerted text}{fg=AccentBlue}
 
-% Keep Beamer's default footer/navigation chrome from colliding with dense figures.
 \setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{footline}{%
   \begin{tikzpicture}[remember picture,overlay]
@@ -44,405 +43,228 @@
   \end{tikzpicture}%
 }
 
-% highlight box
-\newcommand{\hlbox}[2]{%
-  \colorbox{#1}{\strut\color{SlideText}\bfseries\,#2\,}%
-}
-
-% Stable image placement helper for mixed text/image slides.
-\newcommand{\stableimage}[3]{%
-  \begin{center}
-  \includegraphics[width=#1\textwidth,height=#2\textheight,keepaspectratio]{#3}
-  \end{center}
-}
-
-\title{Real-Time Visualization of Digital Modulation\\and Channel Impairments Using a Single PlutoSDR}
-\author{Howard Wang}
-\institute{ENGR 78 -- Final Project}
-\date{Spring 2026}
+\title{Communications Systems Visualizer}
+\subtitle{ENGR 78 Final Project \textemdash\ Interactive browser dashboard (Dash/Plotly)}
+\author[Wang, Moo, Schuetz]{Howard Wang \and Kaw Moo \and Charlie Schuetz}
+\institute{ENGR 78 \textbullet\ Spring 2026}
 
 \begin{document}
 
-% ==================================================================
-% SLIDE 1 -- Title
-% ==================================================================
+% --- Title ---
 \begin{frame}[plain]
 \vspace{0.95cm}
 \begin{center}
-\begin{beamercolorbox}[wd=0.88\textwidth,sep=0.38cm,center,rounded=true,shadow=false]{title}
-{\Large\bfseries Real-Time Visualization of Digital Modulation\\[0.15cm]
-and Channel Impairments Using a Single PlutoSDR}
+\begin{beamercolorbox}[wd=0.88\linewidth,sep=0.38cm,center,rounded=true,shadow=false]{title}
+{\LARGE\bfseries Communications Systems Visualizer}\\[0.3cm]
+{\normalsize ENGR 78 Final Project}
 \end{beamercolorbox}
-\vspace{0.85cm}
-
-{\large Howard Wang}\\[0.35cm]
-{\normalsize ENGR 78 -- Final Project}\\[0.35cm]
-{\normalsize Spring 2026}
+\vspace{0.75cm}
+{\large Howard Wang \quad Kaw Moo \quad Charlie Schuetz}\\[0.45cm]
+{\normalsize\color{SlideMuted}Spring 2026}
 \end{center}
 \end{frame}
 
-% ==================================================================
-% SLIDE 2 -- The Problem
-% ==================================================================
-\begin{frame}{The Problem}
-\begin{center}
-\Large\color{AccentBlue}
-``I can solve the BER equation, but I have no idea\\
-what a noisy constellation \emph{looks} like.''
-\end{center}
-\vspace{0.8cm}
+% --- Motivation ---
+\begin{frame}{Motivation}
 \begin{itemize}
-    \item Traditional courses: modulation = equations + static textbook plots
-    \item Students memorize $Q\!\bigl(\sqrt{2E_b/N_0}\bigr)$ but never \textbf{watch} a signal degrade
-    \item Gap between theory and physical intuition
+    \item ENGR~78 spans sampling, baseband signaling, pulse design, passband modulation, and information limits---often taught as \textbf{separate} problem sets or static plots.
+    \item Students benefit from \alert{one place} where sliders and inputs change \textbf{linked} time-domain, frequency-domain, and statistical views at once.
+    \item A locally hosted \textbf{Dash} app keeps the demo reproducible in any classroom or dorm room without bench hardware.
+\end{itemize}
+\end{frame}
+
+% --- Objective ---
+\begin{frame}{Project objective}
+\begin{enumerate}
+    \item Build a \textbf{browser-based ENGR~78 learning visualizer}, not a hardware-dependent SDR lab.
+    \item Let users adjust course parameters---bits, bandwidth, roll-off, noise, symbol rate, and modulation order---and see \textbf{linked} waveforms, spectra, eye/constellation views, throughput, and capacity results.
+    \item Keep the core demo \textbf{laptop-only} with \texttt{python main.py}; treat \textbf{ADALM-PLUTO} live mode as a separate optional extension.
+\end{enumerate}
+\end{frame}
+
+% --- Overview ---
+\begin{frame}{Overview: how the app works}
+\small
+\begin{center}
+\begin{tikzpicture}[
+    appbox/.style={draw=AccentBlue, fill=BlockFill, rounded corners=2pt, very thick,
+                   align=center, minimum height=1.35cm, text width=2.55cm},
+    supportbox/.style={draw=FrameBar, fill=white, rounded corners=2pt, thick,
+                       align=center, minimum height=0.95cm, text width=4.35cm},
+    arrow/.style={->, thick, draw=AccentBlue}
+]
+    \node[appbox] (ui) at (-5.15,0)
+        {\textbf{User controls}\\[-0.02cm]
+        {\scriptsize browser page\\sliders, menus\\text inputs}};
+    \node[appbox] (callbacks) at (-1.72,0)
+        {\textbf{Python app}\\[-0.02cm]
+        {\scriptsize Dash code\\in \texttt{web\_app.py}\\updates each view}};
+    \node[appbox] (signals) at (1.72,0)
+        {\textbf{Signal math}\\[-0.02cm]
+        {\scriptsize NumPy/SciPy\\pulse-code modulation\\line codes + carriers}};
+    \node[appbox] (plots) at (5.15,0)
+        {\textbf{Interactive graphs}\\[-0.02cm]
+        {\scriptsize waveforms\\spectra\\eyes/constellations}};
+
+    \draw[arrow] (ui) -- (callbacks);
+    \draw[arrow] (callbacks) -- (signals);
+    \draw[arrow] (signals) -- (plots);
+
+    \node[supportbox] (pluto) at (0,2.18)
+        {\textbf{Optional Pluto extension}\\[-0.02cm]
+        {\scriptsize separate Python dashboard\\\texttt{pluto\_live\_app.py} on port 8051}};
+    \draw[arrow, dashed] (pluto.south) -- (signals.north);
+
+    \node[supportbox] (docs) at (0,-1.85)
+        {\textbf{Documentation artifacts}\\[-0.02cm]
+        {\scriptsize screenshots from the running app\\used in the report and deck}};
+    \draw[->, thick, draw=SlideMuted] (plots.south) |- (docs.east);
+\end{tikzpicture}
+\end{center}
+\vspace{-0.08cm}
+{\scriptsize\color{SlideMuted}Core path: user changes a control $\rightarrow$ Python recomputes the signal data $\rightarrow$ Plotly redraws the graphs.\par}
+\end{frame}
+
+% --- Screenshot 1 ---
+\begin{frame}{Dashboard (carrier tab: QPSK)}
+\vspace{-0.2cm}
+\begin{center}
+\includegraphics[width=0.98\linewidth,height=0.72\textheight,keepaspectratio]{dashboard_visible_qpsk.png}
+\end{center}
+\vspace{-0.12cm}
+{\scriptsize\color{SlideMuted}Tab navigation, summary statistics, and synchronized Plotly panels.}
+\end{frame}
+
+% --- Screenshot 2 ---
+\begin{frame}{Composite plot export}
+\vspace{-0.15cm}
+\begin{center}
+\includegraphics[width=0.98\linewidth,height=0.72\textheight,keepaspectratio]{plot_contact_sheet.png}
+\end{center}
+\vspace{-0.1cm}
+{\scriptsize\color{SlideMuted}Single image combining constellation, spectrum, eye, and throughput views for documentation.}
+\end{frame}
+
+% --- Screenshot 3 ---
+\begin{frame}{Full-dashboard capture (BPSK)}
+\vspace{-0.2cm}
+\begin{center}
+\includegraphics[width=0.95\linewidth,height=0.72\textheight,keepaspectratio]{bpsk_full.png}
+\end{center}
+\end{frame}
+
+% --- Screenshot 4 ---
+\begin{frame}{Constellation and eye diagram (QPSK)}
+\begin{columns}[c,onlytextwidth]
+\begin{column}{0.49\linewidth}
+\centering
+\begin{tikzpicture}
+    \node[draw=AccentBlue, line width=1.7pt, rounded corners=3pt, inner sep=2pt] (img)
+        {\includegraphics[width=0.95\linewidth,height=0.53\textheight,keepaspectratio]{qpsk_constellation.png}};
+    \node[anchor=north west, fill=AccentBlue, text=white, rounded corners=2pt,
+          font=\scriptsize\bfseries, inner xsep=4pt, inner ysep=2pt]
+        at ([xshift=0.08cm,yshift=-0.08cm]img.north west) {Extra visualization};
+\end{tikzpicture}\\[0.08cm]
+{\scriptsize\color{AccentBlue}\textbf{Constellation: symbol map}}
+\end{column}
+\begin{column}{0.49\linewidth}
+\centering
+\includegraphics[width=\linewidth,height=0.55\textheight,keepaspectratio]{qpsk_eye.png}\\[0.1cm]
+{\scriptsize Eye diagram}
+\end{column}
+\end{columns}
+\end{frame}
+
+% --- Feature detail ---
+\begin{frame}{Tabs I\textemdash III: baseband and channel}
+\small
+\begin{itemize}
+    \item \textbf{PCM} --- bandwidth $B_m$, oversampling vs.\ Nyquist, bits per sample $n$, implied PCM bit rate and waveform sketch.
+    \item \textbf{Line coding} --- user bit string (up to 32 bits), NRZ/RZ on-off and polar, AMI, Manchester; waveform + windowed PSD.
+    \item \textbf{ISI + eye} --- raised-cosine roll-off $\beta$, neighbor-symbol coupling, Gaussian noise, PAM order; overlaid eye segments after matched filtering.
+\end{itemize}
+\end{frame}
+
+% --- Feature detail 2 ---
+\begin{frame}{Tabs IV\textemdash V: passband and information}
+\small
+\begin{itemize}
+    \item \textbf{$M$-ary + carrier} --- PAM spacing, symbol rate $R_s$, ASK/OOK, BPSK, BFSK, QPSK, 16-QAM time/spectrum views; throughput and cumulative bits.
+    \item \textbf{Capacity + codes} --- Shannon $C=B\log_2(1+\mathrm{SNR})$ vs.\ SNR with operating point; discrete source entropy; repetition-code Hamming-distance toy.
 \end{itemize}
 \vfill
-\begin{block}{}
-\centering\textbf{What if you could \emph{see} every impairment happen in real time, on real hardware?}
-\end{block}
+{\small\color{SlideMuted}\textbf{Implementation:} Core logic and callbacks live in \texttt{web\_app.py}; \texttt{main.py} only starts the server.\par}
 \end{frame}
 
-% ==================================================================
-% SLIDE 3 -- What We Built
-% ==================================================================
-\begin{frame}{What We Built}
-\begin{columns}[c]
-\begin{column}{0.55\textwidth}
-A \alert{real-time, interactive} digital-communications workbench:
-\vspace{0.4cm}
-\begin{enumerate}
-    \item Generate \& transmit a digital signal through an \hlbox{red!60}{ADALM-PLUTO SDR}
-    \item Receive it back via loopback (or software simulation)
-    \item Inject impairments with sliders --- \textbf{instantly} see the effect
-    \item Five live panels: spectrum, constellation, eye diagram, metrics, \textbf{throughput}
-    \item Automated \hlbox{blue!50}{BER sweep mode} for quantitative analysis
-\end{enumerate}
-\end{column}
-\begin{column}{0.42\textwidth}
-\includegraphics[width=\textwidth,height=0.55\textheight,keepaspectratio]{gui_live.png}
-\end{column}
-\end{columns}
+% --- Optional Pluto ---
+\begin{frame}{Optional hardware path}
+\begin{itemize}
+    \item \texttt{pluto\_live\_app.py}: second Dash app (default \textbf{port 8051}) streaming IQ through \texttt{RealtimeEngine} (\texttt{src/realtime\_engine.py}). Use \textbf{Simulation (no radio)} without hardware, then \textbf{Start}.
+    \item Typical schemes in the live UI: BPSK, QPSK, 16-QAM; spectrum, constellation, eye, SNR/throughput trends.
+    \item macOS: Pluto USB Ethernet in \texttt{ncm} mode; device often at \texttt{192.168.2.1} (see repository \texttt{README.md}).
+\end{itemize}
+\vfill
+{\small\color{SlideMuted}Course grading and demos can rely entirely on the browser app; Pluto is additive.\par}
 \end{frame}
 
-% ==================================================================
-% SLIDE 4 -- System Architecture
-% ==================================================================
-\begin{frame}{System Architecture}
-\stableimage{0.98}{0.70}{block_diagram_v2.png}
-\end{frame}
-
-% ==================================================================
-% SLIDE 5 -- Architecture meaning
-% ==================================================================
-\begin{frame}{How to Read the Architecture}
+% --- File roles (compact) ---
+\begin{frame}{Key files}
+\centering
 \footnotesize
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{File} & \textbf{Role} \\
+\midrule
+\texttt{main.py} & Entry point; runs Dash on localhost (port 8050). \\
+\texttt{web\_app.py} & Tabs, callbacks, NumPy/Plotly signal generation \\
+\texttt{pluto\_live\_app.py} & Optional Pluto live dashboard \\
+\texttt{requirements.txt} & NumPy, SciPy, Dash, Plotly, pyadi-iio \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+% --- Summary ---
+\begin{frame}{Outcomes and extensions}
+\begin{itemize}
+    \item Delivered a \alert{unified} interactive visualizer aligned with ENGR~78 topic progression.
+    \item Students can explore rate, bandwidth, noise, and constellation geometry without installing a heavy SDR toolchain for the core lab.
+    \item Natural extensions: saved presets per lecture, CSV export, additional codes or decoders, deeper FEC labs.
+\end{itemize}
+\end{frame}
+
+% --- Credits ---
+\begin{frame}{Credits and codebase size}
+\small
 \begin{columns}[T,onlytextwidth]
-\begin{column}{0.48\textwidth}
-\textbf{\color{AccentBlue}Transmit Side}
-\begin{itemize}\setlength{\itemsep}{0.05cm}
-    \item \textbf{Payload bits}: random data to test the link.
-    \item \textbf{Symbol map + RRC}: turns bits into constellation points and limits bandwidth.
-    \item \textbf{Frame builder}: adds preamble and payload so RX can lock and compare bits.
-\end{itemize}
-\end{column}
-\begin{column}{0.48\textwidth}
-\textbf{\color{AccentBlue}Receive Side}
-\begin{itemize}\setlength{\itemsep}{0.05cm}
-    \item \textbf{Pluto loopback}: RF leaves TX, passes through attenuation, then re-enters RX.
-    \item \textbf{Software impairments}: adds noise, phase/frequency offset, fading, and multipath after RX.
-    \item \textbf{Sync + demod}: fixes timing/phase/frequency, recovers bits, and reports BER/EVM/SNR.
-\end{itemize}
-\end{column}
-\end{columns}
-\vspace{0.18cm}
-\begin{block}{Why the impairment block is after RX}
-Keeping impairments in software makes the sliders instant and lets hardware loopback and simulation use the same DSP + GUI path.
+\begin{column}{0.48\linewidth}
+\begin{block}{Project team}
+Howard Wang\\
+Kaw Moo\\
+Charlie Schuetz
 \end{block}
-\end{frame}
-
-% ==================================================================
-% SLIDE 5 -- Modulation Schemes
-% ==================================================================
-\begin{frame}{Four Modulation Schemes}
-\stableimage{0.92}{0.41}{constellations.png}
-\begin{columns}[T]
-\begin{column}{0.48\textwidth}
-\begin{itemize}
-    \item Gray-coded constellations
-    \item Root-raised-cosine pulse shaping ($\alpha\!=\!0.35$, 8 samp/sym)
-\end{itemize}
+\begin{block}{AI assistance}
+GPT 5.5 and Cursor Composer helped with code drafting, debugging, documentation, and presentation refinement.
+\end{block}
 \end{column}
-\begin{column}{0.48\textwidth}
-\begin{itemize}
-    \item Nearest-neighbor hard-decision demod
-    \item Switchable on-the-fly from the GUI
-\end{itemize}
-\end{column}
-\end{columns}
-\end{frame}
-
-% ==================================================================
-% SLIDE 6 -- Channel Impairments (visual)
-% ==================================================================
-\begin{frame}{Channel Impairments -- See the Damage}
-\stableimage{0.92}{0.35}{impairment_effects.png}
+\begin{column}{0.48\linewidth}
+\begin{block}{Project scale}
 \begin{center}
-\scriptsize
-\renewcommand{\arraystretch}{0.92}
-\begin{tabular}{l l l}
-\toprule
-\textbf{Impairment} & \textbf{Model} & \textbf{Control Range} \\
-\midrule
-AWGN             & Complex Gaussian      & 0--40\,dB SNR \\
-Phase offset     & $e^{j\phi}$ rotation  & $\pm 180^\circ$ \\
-Frequency offset & Linear phase ramp     & $\pm 5000$\,Hz \\
-Multipath        & 2-tap delay line      & 0--10 sym, gain 0--1 \\
-Flat fading      & Rician envelope       & $K = -10$ to $40$\,dB \\
-\bottomrule
-\end{tabular}
+{\LARGE\bfseries $\sim$4,200 lines}\\[0.08cm]
+{\normalsize application source code}
 \end{center}
-\end{frame}
-
-% ==================================================================
-% SLIDE 7 -- Receiver Sync
-% ==================================================================
-\begin{frame}{Receiver Synchronization}
-\stableimage{0.88}{0.34}{frame_structure.png}
-\begin{columns}[T]
-\begin{column}{0.48\textwidth}
-\begin{enumerate}
-    \item \textbf{Frame detection} -- cross-correlate with Barker-13 template
-    \item \textbf{Freq offset est.} -- repeated-preamble phase difference
-\end{enumerate}
-\end{column}
-\begin{column}{0.48\textwidth}
-\begin{enumerate}\setcounter{enumi}{2}
-    \item \textbf{Phase est.} -- pilot-aided from known preamble
-    \item \textbf{Timing recovery} -- Gardner TED with first-order loop
-\end{enumerate}
-\end{column}
-\end{columns}
-\end{frame}
-
-% ==================================================================
-% SLIDE 8 -- Eye Diagram Deep Dive
-% ==================================================================
-\begin{frame}{Eye Diagram -- Reading Signal Health}
-\stableimage{0.90}{0.40}{eye_diagrams.png}
-\begin{itemize}
-    \item 50 overlaid symbol-period traces of the matched-filtered I channel
-    \item \textbf{Wide-open eye} $\Rightarrow$ clean decisions \hfill
-          \textbf{Closed eye} $\Rightarrow$ errors imminent
-    \item Instantly shows ISI from multipath, jitter from timing error, or noise
-\end{itemize}
-\end{frame}
-
-% ==================================================================
-% SLIDE 9 -- Live GUI Walkthrough
-% ==================================================================
-\begin{frame}{Live Mode -- GUI Walkthrough}
-\stableimage{0.82}{0.50}{gui_live.png}
-\begin{columns}[T]
-\begin{column}{0.24\textwidth}
-\centering\footnotesize\textbf{Spectrum}\\FFT of IQ\\spectral shape
-\end{column}
-\begin{column}{0.24\textwidth}
-\centering\footnotesize\textbf{Constellation}\\demod symbols\\ideal refs
-\end{column}
-\begin{column}{0.24\textwidth}
-\centering\footnotesize\textbf{Eye Diagram}\\ISI indicator\\timing quality
-\end{column}
-\begin{column}{0.24\textwidth}
-\centering\footnotesize\textbf{Metrics}\\rolling BER,\\EVM, SNR
-\end{column}
-\end{columns}
-\vspace{0.05cm}
-\centering\footnotesize + \textbf{Throughput \& Cumulative Bits} panel across the bottom row
-\end{frame}
-
-% ==================================================================
-% SLIDE 10 -- BER Sweep Mode
-% ==================================================================
-\begin{frame}{BER Sweep Mode -- Theory Meets Measurement}
-\begin{columns}[c]
-\begin{column}{0.55\textwidth}
-\includegraphics[width=\textwidth,height=0.56\textheight,keepaspectratio]{ber_sweep.png}
-\end{column}
-\begin{column}{0.42\textwidth}
-\small
-\begin{itemize}
-    \item Automated: sweep SNR, measure BER for each scheme
-    \item Circles = measured, dashed = theory:
-    {\scriptsize
-    \[
-    \begin{aligned}
-    \text{BPSK/QPSK: } & Q\!\left(\sqrt{2E_b/N_0}\right) \\
-    \text{16-QAM: } & \tfrac{3}{8}\operatorname{erfc}\!\left(\sqrt{0.4E_b/N_0}\right)
-    \end{aligned}
-    \]
-    }
-    \item \alert{Validates} that our pipeline matches textbook curves
-    \item Hardware loopback adds $\sim$0.5--1\,dB loss vs.\ simulation
-\end{itemize}
-\end{column}
-\end{columns}
-\end{frame}
-
-% ==================================================================
-% SLIDE 11 -- Throughput & Cumulative Bits
-% ==================================================================
-\begin{frame}{Throughput \& Cumulative Bits}
-\stableimage{0.90}{0.40}{throughput_cumul.png}
-\footnotesize
-\begin{columns}[T]
-\begin{column}{0.48\textwidth}
-\textbf{\color{AccentBlue}Instantaneous Throughput}
-\begin{itemize}
-    \item QPSK at 20 FPS: $\sim$\alert{40 kbit/s} decoded payload
-    \item 16-QAM doubles it: $\sim$80 kbit/s
-    \item Varies with USB latency and sync lock
-\end{itemize}
-\end{column}
-\begin{column}{0.48\textwidth}
-\textbf{\color{AccentBlue}Cumulative Bits}
-\begin{itemize}
-    \item Tracks \textbf{every bit} decoded since ``Start''
-    \item Linear ramp = steady link; plateau = sync loss
-    \item $>$\,1\,Mbit within 30\,s of clean QPSK
-\end{itemize}
-\end{column}
-\end{columns}
-\end{frame}
-
-% ==================================================================
-% SLIDE 12 -- Software Design
-% ==================================================================
-\begin{frame}{Software Architecture}
-\begin{center}
-\scriptsize
-\renewcommand{\arraystretch}{0.94}
-\begin{tabular}{l l l}
-\toprule
-\textbf{Module} & \textbf{Role} & \textbf{Key Technique} \\
-\midrule
-\texttt{modulation.py}       & Constellation, mod/demod, RRC    & Gray-coded maps \\
-\texttt{impairments.py}      & AWGN, phase, freq, multipath     & Chained transforms \\
-\texttt{synchronization.py}  & Preamble, freq/phase/timing      & Gardner TED \\
-\texttt{pluto\_interface.py} & PlutoSDR TX/RX                   & USB auto-detect \\
-\texttt{dsp\_worker.py}      & QThread pipeline                 & Shared-data + mutex \\
-\texttt{ber\_sweep.py}       & BER sweep engine                 & SNR loop + theory \\
-\texttt{gui.py}              & PyQt6 + PyQtGraph                & 20 FPS timer poll \\
-\bottomrule
-\end{tabular}
-\end{center}
-\vspace{0.18cm}
-\small
-\begin{block}{Key Design Choice}
-DSP worker writes to shared memory $\to$ GUI timer reads at its own pace.\\
-Result: \textbf{no signal-queue backlog}, consistent frame rate regardless of DSP speed.
 \end{block}
-\end{frame}
-
-% ==================================================================
-% SLIDE 12 -- Demo Scenarios
-% ==================================================================
-\begin{frame}{Demo Scenarios -- Try It Yourself}
-\begin{columns}[T]
-\begin{column}{0.48\textwidth}
-\hlbox{green!50}{Noise Floor Exploration}
-\begin{itemize}
-    \item Start with all impairments off
-    \item Slide SNR from 40\,dB $\to$ 0\,dB
-    \item Watch: constellation spreads, eye closes, BER climbs
-\end{itemize}
-\vspace{0.3cm}
-\hlbox{purple!60}{Multipath}
-\begin{itemize}
-    \item Delay = 3 symbols, gain = 0.5
-    \item Eye diagram shows ISI directly
-    \item Clusters blur and merge
-\end{itemize}
-\end{column}
-\begin{column}{0.48\textwidth}
-\hlbox{orange!60}{Phase \& Frequency Offset}
-\begin{itemize}
-    \item 45$^\circ$ phase: constellation rotates
-    \item 2\,kHz freq offset: symbols spin (sync corrects it)
-\end{itemize}
-\vspace{0.3cm}
-\hlbox{cyan!50}{Scheme Comparison}
-\begin{itemize}
-    \item Fix SNR at 15\,dB, switch BPSK $\to$ 16-QAM
-    \item More bits/symbol = less noise margin
-    \item BER sweep quantifies the trade-off
-\end{itemize}
+{\scriptsize\color{SlideMuted}Count excludes virtual environments and generated files. It includes the Python app, \texttt{src/} modules, CSS, and source helper scripts.\par}
 \end{column}
 \end{columns}
 \end{frame}
 
-% ==================================================================
-% SLIDE 13 -- Results
-% ==================================================================
-\begin{frame}{Results \& Observations}
-\begin{columns}[T]
-\begin{column}{0.50\textwidth}
-\begin{block}{Quantitative}
-\begin{itemize}
-    \item Measured BER curves match theory within $<$\,1\,dB for all four schemes
-    \item Hardware loopback adds $\sim$0.5--1\,dB loss (I/Q imbalance, DC offset, quantization)
-    \item Gardner TED locks timing within 2--3 symbol periods
-\end{itemize}
-\end{block}
-\end{column}
-\begin{column}{0.46\textwidth}
-\begin{block}{Performance}
-\begin{itemize}
-    \item Simulation mode: $\sim$20 FPS, 6\,ms DSP/frame
-    \item Hardware mode: $\sim$15 FPS (USB latency)
-    \item Sustained $\sim$40\,kbit/s (QPSK) to $\sim$80\,kbit/s (16-QAM) decoded throughput
-    \item $>$\,1\,Mbit cumulative within 30\,s
-\end{itemize}
-\end{block}
-\end{column}
-\end{columns}
-\end{frame}
-
-% ==================================================================
-% SLIDE 14 -- What I Learned
-% ==================================================================
-\begin{frame}{Lessons Learned}
-\begin{enumerate}
-    \item \textbf{Synchronization is the hard part} -- modulation is textbook, but preamble detection + timing recovery required iterative tuning
-    \item \textbf{Decouple DSP from GUI} -- direct signal emissions caused Qt event-queue backlog; shared memory + timer polling fixed it
-    \item \textbf{Hardware surprises} -- real PlutoSDR has DC offset, I/Q imbalance, and USB latency that pure math ignores
-    \item \textbf{Visualization builds intuition} -- watching the constellation rotate under frequency offset taught me more than any derivation
-\end{enumerate}
-\end{frame}
-
-% ==================================================================
-% SLIDE 15 -- Conclusion
-% ==================================================================
-\begin{frame}{Conclusion}
+% --- Thanks ---
+\begin{frame}[plain]
+\vspace{1.15cm}
 \begin{center}
-\begin{minipage}{0.85\textwidth}
-\normalsize
-Built a \alert{complete real-time digital communications visualizer} with:
-\vspace{0.15cm}
-\begin{itemize}
-    \item[\checkmark] 4 modulation schemes (BPSK, QPSK, 8-PSK, 16-QAM)
-    \item[\checkmark] 6 controllable channel impairments with instant visual feedback
-    \item[\checkmark] Full receiver synchronization chain
-    \item[\checkmark] Live throughput \& cumulative bits tracking
-    \item[\checkmark] Two modes: interactive live exploration \& automated BER sweep
-    \item[\checkmark] Hardware or simulation -- works everywhere
-\end{itemize}
-\vspace{0.2cm}
-All open-source Python -- $\sim$1200 lines across 7 modules.
-\end{minipage}
-\end{center}
-\vspace{0.2cm}
-\begin{center}
-\large\textbf{\color{AccentBlue}Thank You -- Questions?}
+{\Huge\color{AccentBlue}\bfseries Thank you}\\[0.45cm]
+{\Large Questions?}\\[0.75cm]
+{\normalsize\color{SlideMuted}Communications Systems Visualizer \textbullet\ ENGR 78 Final Project}
 \end{center}
 \end{frame}
 
